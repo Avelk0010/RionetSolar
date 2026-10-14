@@ -4,6 +4,121 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Avenir Next', 'Segoe UI', sans-serif;
+}
+
+:root {
+    --rionet-blue: #155a91;
+    --rionet-blue-deep: #12384a;
+    --rionet-green: #5f963f;
+    --rionet-yellow: #f3bd35;
+    --rionet-teal: #238c89;
+    --ink: #17313c;
+    --muted: #687b80;
+    --line: #dce6e1;
+    --paper: #f5f8f4;
+}
+
+body {
+    background-color: var(--paper);
+    background-image: radial-gradient(#d8e5d9 0.7px, transparent 0.7px);
+    background-size: 18px 18px;
+    color: var(--ink);
+}
+
+.app-shell {
+    min-height: 100vh;
+}
+
+.app-sidebar {
+    background: var(--rionet-blue-deep);
+    color: #eaf2ef;
+}
+
+.app-sidebar a {
+    color: #c5d5d2;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.app-sidebar a:hover,
+.app-sidebar a[aria-current='page'] {
+    background: rgb(255 255 255 / 10%);
+    color: white;
+}
+
+.app-sidebar a[aria-current='page']::before {
+    background: var(--rionet-yellow);
+    border-radius: 999px;
+    content: '';
+    height: 7px;
+    margin-left: -12px;
+    position: absolute;
+    width: 7px;
+}
+
+.brand-accent {
+    color: var(--rionet-green);
+}
+
+.button-primary {
+    background: var(--rionet-blue);
+    color: white;
+    transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.button-primary:hover {
+    background: #104c7e;
+    transform: translateY(-1px);
+}
+
+.button-secondary {
+    border: 1px solid var(--line);
+    color: var(--rionet-blue-deep);
+}
+
+.button-secondary:hover {
+    background: #edf4ed;
+}
+
+.field-control {
+    border: 1px solid #cbd9d4;
+    background: white;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.field-control:focus {
+    border-color: var(--rionet-teal);
+    box-shadow: 0 0 0 3px rgb(35 140 137 / 13%);
+}
+
+.field-control[aria-invalid='true'] {
+    border-color: #c4473d;
+}
+
+.page-enter {
+    animation: page-enter 420ms ease-out both;
+}
+
+@media (max-width: 1023px) {
+    .app-sidebar[data-open='true'] {
+        display: flex;
+        position: fixed;
+        width: 16rem;
+        box-shadow: 12px 0 32px rgb(18 56 74 / 18%);
+    }
+}
+
+@keyframes page-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }

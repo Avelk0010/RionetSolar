@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 150" role="img" aria-labelledby="title">
+  <title id="title">Rionet Solar</title>
+  <defs>
+    <linearGradient id="wave" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#155a9b"/>
+      <stop offset="1" stop-color="#2189b5"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4f963e"/>
+      <stop offset="1" stop-color="#8db943"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd84e"/>
+      <stop offset="1" stop-color="#f1a91e"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(8 9)">
+    <circle cx="65" cy="67" r="57" fill="#f4f8ee"/>
+    <path d="M20 37c18-23 50-31 76-15 15 9 23 23 22 39-1 23-19 42-46 48-18 4-34 1-47-6 12 15 33 23 55 20 34-5 57-31 57-62 0-34-27-59-62-59-25 0-47 13-59 35 2 0 3 0 4 0z" fill="url(#leaf)"/>
+    <path d="M104 34c-15-14-38-18-59-8-17 8-29 25-29 44 0 30 24 52 54 52 17 0 32-7 42-20-13 7-29 8-43 2-16-7-26-20-26-35 0-17 13-31 32-36 10-3 20-2 29 1z" fill="url(#wave)"/>
+    <circle cx="106" cy="21" r="13" fill="url(#sun)"/>
+    <g transform="translate(91 78) rotate(-24)" fill="#258a91" stroke="#fff" stroke-width="1.5">
+      <rect width="13" height="8" rx="1"/><rect x="15" width="13" height="8" rx="1"/><rect x="30" width="13" height="8" rx="1"/>
+      <rect y="10" width="13" height="8" rx="1"/><rect x="15" y="10" width="13" height="8" rx="1"/><rect x="30" y="10" width="13" height="8" rx="1"/>
+    </g>
+  </g>
+  <text x="175" y="83" fill="#1d6399" font-family="Georgia, 'Times New Roman', serif" font-size="62" font-weight="700" letter-spacing="1">RIONET</text>
+  <text x="178" y="130" fill="#5d9a43" font-family="Arial, sans-serif" font-size="37" font-weight="700" letter-spacing="8">SOLAR</text>
+  <path d="M415 113h70" stroke="#f0b528" stroke-width="5" stroke-linecap="round"/>
+</svg>
