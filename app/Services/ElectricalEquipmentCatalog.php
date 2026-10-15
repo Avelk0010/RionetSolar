@@ -35,9 +35,11 @@ class ElectricalEquipmentCatalog
         ],
         'paneles-solares' => [
             'relation' => 'solarPanelSpec',
-            'fields' => ['max_power_w', 'open_circuit_voltage_v', 'short_circuit_current_a', 'max_system_voltage_v', 'length_mm', 'width_mm', 'height_mm'],
+            'fields' => ['max_power_w', 'max_power_voltage_v', 'max_power_current_a', 'open_circuit_voltage_v', 'short_circuit_current_a', 'max_system_voltage_v', 'length_mm', 'width_mm', 'height_mm'],
             'rules' => [
                 'max_power_w' => ['required', 'numeric', 'gt:0'],
+                'max_power_voltage_v' => ['required', 'numeric', 'gt:0'],
+                'max_power_current_a' => ['required', 'numeric', 'gt:0'],
                 'open_circuit_voltage_v' => ['required', 'numeric', 'gt:0'],
                 'short_circuit_current_a' => ['required', 'numeric', 'gt:0'],
                 'max_system_voltage_v' => ['required', 'numeric', 'gt:0'],

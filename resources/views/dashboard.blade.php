@@ -19,7 +19,7 @@
             <h2 id="catalog-summary" class="text-lg font-semibold text-[#173b49]">Resumen del catálogo</h2>
             <span class="text-xs text-[#718187]">Registros totales</span>
         </div>
-        <div class="grid gap-3 sm:grid-cols-3">
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <a href="{{ route('admin.appliances.index') }}" class="group border border-[#dce6e1] bg-white p-5 transition hover:border-[#8ebc72]">
                 <div class="mb-5 flex items-center justify-between">
                     <span class="text-sm font-medium text-[#526a70]">Electrodomésticos</span>
@@ -44,6 +44,14 @@
                 <p class="text-3xl font-semibold text-[#155a91]">{{ number_format($materialCount) }}</p>
                 <span class="mt-2 block text-xs text-[#718187] group-hover:text-[#155a91]">Abrir catálogo <span aria-hidden="true">→</span></span>
             </a>
+            <a href="{{ route('admin.solar-projects.index') }}" class="group border border-[#dce6e1] bg-white p-5 transition hover:border-[#8ebc72]">
+                <div class="mb-5 flex items-center justify-between">
+                    <span class="text-sm font-medium text-[#526a70]">Proyectos fotovoltaicos</span>
+                    <span class="h-2 w-8 rounded-full bg-[#f3bd35]"></span>
+                </div>
+                <p class="text-3xl font-semibold text-[#155a91]">{{ number_format($projectCount) }}</p>
+                <span class="mt-2 block text-xs text-[#718187] group-hover:text-[#155a91]">Abrir proyectos <span aria-hidden="true">→</span></span>
+            </a>
         </div>
     </section>
 
@@ -53,6 +61,7 @@
             <a href="{{ route('admin.appliances.create') }}" class="button-primary inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold">+ Electrodoméstico</a>
             <a href="{{ route('admin.electrical-equipment.create') }}" class="button-secondary inline-flex items-center gap-2 rounded-md bg-white px-4 py-2.5 text-sm font-semibold">+ Equipo eléctrico</a>
             <a href="{{ route('admin.installation-materials.create') }}" class="button-secondary inline-flex items-center gap-2 rounded-md bg-white px-4 py-2.5 text-sm font-semibold">+ Material</a>
+            <a href="{{ route('admin.solar-projects.create') }}" class="button-secondary inline-flex items-center gap-2 rounded-md bg-white px-4 py-2.5 text-sm font-semibold">+ Proyecto solar</a>
         </div>
     </section>
 @endsection

@@ -44,6 +44,8 @@
     <fieldset data-spec-group="paneles-solares" class="grid gap-5 sm:grid-cols-2" hidden>
         <legend class="sr-only">Especificaciones del panel solar</legend>
         <x-input-field name="max_power_w" label="Potencia máxima (W)" type="number" step="0.01" min="0.01" :value="$equipment?->solarPanelSpec?->max_power_w" required />
+        <x-input-field name="max_power_voltage_v" label="Voltaje de máxima potencia Vmp (V)" type="number" step="any" min="0.001" :value="$equipment?->solarPanelSpec?->max_power_voltage_v" required />
+        <x-input-field name="max_power_current_a" label="Corriente de máxima potencia Imp (A)" type="number" step="any" min="0.001" :value="$equipment?->solarPanelSpec?->max_power_current_a" required />
         <x-input-field name="open_circuit_voltage_v" label="Voltaje de circuito abierto Voc (V)" type="number" step="any" min="0.001" :value="$equipment?->solarPanelSpec?->open_circuit_voltage_v" required />
         <x-input-field name="short_circuit_current_a" label="Corriente de cortocircuito Isc (A)" type="number" step="any" min="0.001" :value="$equipment?->solarPanelSpec?->short_circuit_current_a" required />
         <x-input-field name="max_system_voltage_v" label="Voltaje máximo del sistema (V)" type="number" step="any" min="0.001" :value="$equipment?->solarPanelSpec?->max_system_voltage_v" required />

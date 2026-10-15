@@ -26,18 +26,18 @@ function validInverterData(int $categoryId): array
     ];
 }
 
-test('creates an appliance with a supported voltage and positive power', function () {
+test('creates an appliance with a supported voltage and positive hourly energy', function () {
     $response = $this->post(route('admin.appliances.store'), [
-        'name' => 'Nevera de prueba', 'voltage' => 110, 'power_w' => 180.5,
+        'name' => 'Nevera de prueba', 'voltage' => 110, 'energy_consumption_wh' => 180.5,
     ]);
 
     $response->assertRedirect();
-    $this->assertDatabaseHas('appliances', ['name' => 'Nevera de prueba', 'voltage' => 110, 'power_w' => 180.5]);
+    $this->assertDatabaseHas('appliances', ['name' => 'Nevera de prueba', 'voltage' => 110, 'energy_consumption_wh' => 180.5]);
 });
 
 test('rejects appliance voltages outside 110 and 220 volts', function () {
     $response = $this->post(route('admin.appliances.store'), [
-        'name' => 'Carga inválida', 'voltage' => 120, 'power_w' => 100,
+        'name' => 'Carga inválida', 'voltage' => 120, 'energy_consumption_wh' => 100,
     ]);
 
     $response->assertSessionHasErrors('voltage');
@@ -46,10 +46,10 @@ test('rejects appliance voltages outside 110 and 220 volts', function () {
 
 test('rejects appliance power that is not positive', function (int|float $power) {
     $response = $this->post(route('admin.appliances.store'), [
-        'name' => 'Carga inválida', 'voltage' => 220, 'power_w' => $power,
+        'name' => 'Carga inválida', 'voltage' => 220, 'energy_consumption_wh' => $power,
     ]);
 
-    $response->assertSessionHasErrors('power_w');
+    $response->assertSessionHasErrors('energy_consumption_wh');
     $this->assertDatabaseCount('appliances', 0);
 })->with([
     'zero watts' => [0],
@@ -68,6 +68,13 @@ test('creates equipment and its matching technical sheet for every supported cat
     $response->assertRedirect();
     $this->assertDatabaseCount('electrical_equipment', 1);
     $this->assertDatabaseCount($table, 1);
+
+    if ($slug === 'paneles-solares') {
+        $this->assertDatabaseHas($table, [
+            'max_power_voltage_v' => $technicalData['max_power_voltage_v'],
+            'max_power_current_a' => $technicalData['max_power_current_a'],
+        ]);
+    }
 })->with([
     'inverter' => ['inversores', 'inverter_specs', [
         'mppt_count' => 2, 'mppt_max_voltage_v' => 500, 'mppt_max_current_a' => 15, 'mppt_max_power_w' => 4000,
@@ -75,7 +82,8 @@ test('creates equipment and its matching technical sheet for every supported cat
         'max_output_current_a' => 30, 'max_output_power_w' => 4000,
     ]],
     'solar panel' => ['paneles-solares', 'solar_panel_specs', [
-        'max_power_w' => 550, 'open_circuit_voltage_v' => 49.8, 'short_circuit_current_a' => 14,
+        'max_power_w' => 550, 'max_power_voltage_v' => 41.8, 'max_power_current_a' => 13.16,
+        'open_circuit_voltage_v' => 49.8, 'short_circuit_current_a' => 14,
         'max_system_voltage_v' => 1500, 'length_mm' => 2278, 'width_mm' => 1134, 'height_mm' => 35,
     ]],
     'battery' => ['baterias', 'battery_specs', ['capacity_ah' => 100, 'voltage_v' => 48]],
@@ -99,6 +107,65 @@ test('rejects an incomplete technical sheet without creating its equipment', fun
     $response->assertSessionHasErrors(['mppt_max_voltage_v', 'ac_input_voltage_v']);
     $this->assertDatabaseCount('electrical_equipment', 0);
 });
+
+test('rejects a solar panel without a positive maximum power voltage', function (int|float|null $voltage) {
+    $this->seed(ElectricalEquipmentCategorySeeder::class);
+    $category = ElectricalEquipmentCategory::query()->where('slug', 'paneles-solares')->firstOrFail();
+    $technicalData = [
+        'electrical_equipment_category_id' => $category->id,
+        'name' => 'Panel sin Vmp válido',
+        'price' => 250000,
+        'max_power_w' => 550,
+        'open_circuit_voltage_v' => 49.8,
+        'short_circuit_current_a' => 14,
+        'max_system_voltage_v' => 1500,
+        'length_mm' => 2278,
+        'width_mm' => 1134,
+        'height_mm' => 35,
+    ];
+
+    if ($voltage !== null) {
+        $technicalData['max_power_voltage_v'] = $voltage;
+    }
+
+    $response = $this->post(route('admin.electrical-equipment.store'), $technicalData);
+
+    $response->assertSessionHasErrors('max_power_voltage_v');
+    $this->assertDatabaseCount('electrical_equipment', 0);
+})->with([
+    'missing voltage' => [null],
+    'zero voltage' => [0],
+]);
+
+test('rejects a solar panel without a positive maximum power current', function (int|float|null $current) {
+    $this->seed(ElectricalEquipmentCategorySeeder::class);
+    $category = ElectricalEquipmentCategory::query()->where('slug', 'paneles-solares')->firstOrFail();
+    $technicalData = [
+        'electrical_equipment_category_id' => $category->id,
+        'name' => 'Panel sin Imp válido',
+        'price' => 250000,
+        'max_power_w' => 550,
+        'max_power_voltage_v' => 41.8,
+        'open_circuit_voltage_v' => 49.8,
+        'short_circuit_current_a' => 14,
+        'max_system_voltage_v' => 1500,
+        'length_mm' => 2278,
+        'width_mm' => 1134,
+        'height_mm' => 35,
+    ];
+
+    if ($current !== null) {
+        $technicalData['max_power_current_a'] = $current;
+    }
+
+    $response = $this->post(route('admin.electrical-equipment.store'), $technicalData);
+
+    $response->assertSessionHasErrors('max_power_current_a');
+    $this->assertDatabaseCount('electrical_equipment', 0);
+})->with([
+    'missing current' => [null],
+    'zero current' => [0],
+]);
 
 test('rejects technical attributes that do not match the selected category', function () {
     $this->seed(ElectricalEquipmentCategorySeeder::class);

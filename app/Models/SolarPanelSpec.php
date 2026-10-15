@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SolarPanelSpec extends Model
 {
     protected $fillable = [
-        'electrical_equipment_id', 'max_power_w', 'open_circuit_voltage_v', 'short_circuit_current_a',
+        'electrical_equipment_id', 'max_power_w', 'max_power_voltage_v', 'max_power_current_a', 'open_circuit_voltage_v', 'short_circuit_current_a',
         'max_system_voltage_v', 'length_mm', 'width_mm', 'height_mm',
     ];
 

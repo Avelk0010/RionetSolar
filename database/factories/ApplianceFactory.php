@@ -20,7 +20,7 @@ class ApplianceFactory extends Factory
         return [
             'name' => fake()->unique()->words(2, true),
             'voltage' => fake()->randomElement([110, 220]),
-            'power_w' => fake()->randomFloat(2, 1, 2500),
+            'energy_consumption_wh' => fake()->randomFloat(2, 1, 2500),
             'description' => fake()->optional()->sentence(),
             'is_active' => true,
         ];

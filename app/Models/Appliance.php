@@ -11,11 +11,11 @@ class Appliance extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'voltage', 'power_w', 'description', 'is_active'];
+    protected $fillable = ['name', 'voltage', 'energy_consumption_wh', 'description', 'is_active'];
 
     protected function casts(): array
     {
-        return ['power_w' => 'decimal:2', 'is_active' => 'boolean'];
+        return ['energy_consumption_wh' => 'decimal:2', 'is_active' => 'boolean'];
     }
 
     #[Scope]

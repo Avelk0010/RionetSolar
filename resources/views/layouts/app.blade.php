@@ -27,6 +27,9 @@
                 <a href="{{ route('admin.installation-materials.index') }}" @if(request()->routeIs('admin.installation-materials.*')) aria-current="page" @endif class="relative flex items-center gap-3 rounded-md px-3 py-2.5">
                     <span class="w-5 text-center text-[#8ec7b1]">04</span> Materiales
                 </a>
+                <a href="{{ route('admin.solar-projects.index') }}" @if(request()->routeIs('admin.solar-projects.*')) aria-current="page" @endif class="relative flex items-center gap-3 rounded-md px-3 py-2.5">
+                    <span class="w-5 text-center text-[#f3bd35]">05</span> Proyectos solares
+                </a>
             </nav>
             <div class="mt-auto border-t border-white/10 px-3 pt-4 text-xs text-[#9bb2ae]">
                 <span class="mb-2 block h-1 w-9 rounded-full bg-[#f3bd35]"></span>

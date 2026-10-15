@@ -45,3 +45,7 @@ php artisan boost:install
 
 Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
 </laravel-boost-guidelines>
+
+## Rionet Solar project context
+
+Before each task in this repository, read `PROJECT_CONTEXT.md` for the verified architecture, data constraints, migration state, and open scope. Treat source code, tests, and the configured database as authoritative when they differ from the summary. After implementation, update only durable context changes that were verified; do not copy the full original request or log transient edits.

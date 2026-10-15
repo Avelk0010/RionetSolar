@@ -9,7 +9,7 @@
         </select>
         @error('voltage')<p class="text-xs text-[#b43f35]">{{ $message }}</p>@enderror
     </div>
-    <x-input-field name="power_w" label="Potencia nominal (W)" type="number" step="0.01" min="0.01" :value="$appliance?->power_w" required />
+    <x-input-field name="energy_consumption_wh" label="Consumo energético en una hora (Wh)" type="number" step="0.01" min="0.01" :value="$appliance?->energy_consumption_wh" required />
     <div class="flex items-center gap-3 self-end rounded-md border border-[#dce6e1] bg-white px-4 py-3">
         <input type="hidden" name="is_active" value="0">
         <input id="is_active" type="checkbox" name="is_active" value="1" @checked((bool) old('is_active', $appliance?->is_active ?? true)) class="h-4 w-4 accent-[#5f963f]">

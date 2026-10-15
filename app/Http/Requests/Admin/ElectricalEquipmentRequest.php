@@ -98,6 +98,8 @@ abstract class ElectricalEquipmentRequest extends FormRequest
             'max_output_current_a' => 'corriente máxima de salida (A)',
             'max_output_power_w' => 'potencia máxima de salida (W)',
             'max_power_w' => 'potencia máxima (W)',
+            'max_power_voltage_v' => 'voltaje de máxima potencia Vmp (V)',
+            'max_power_current_a' => 'corriente de máxima potencia Imp (A)',
             'open_circuit_voltage_v' => 'voltaje de circuito abierto (V)',
             'short_circuit_current_a' => 'corriente de cortocircuito (A)',
             'max_system_voltage_v' => 'voltaje máximo del sistema (V)',
