@@ -90,21 +90,32 @@ class SolarProjectCalculator
                 ((float) $project->night_consumption_wh_per_day * (1 + $nightOversizing)) / ($batteryEnergyWh * $maxBatteryDischarge),
             );
 
-            $stringCount = $inverterCount;
-            $panelsPerString = (int) ceil($requiredPanelCount / $stringCount);
-            $stringPowerW = $panelsPerString * $panelPowerW;
-
-            if ($stringPowerW > $panelLimitW) {
+            if ($panelPowerW > $panelLimitW) {
                 throw ValidationException::withMessages([
                     'solar_panel_equipment_id' => sprintf(
-                        'Cada string tendría %.2f W, por encima del límite MPPT de %.2f W. Selecciona otro inversor o panel.',
-                        $stringPowerW,
+                        'Un solo panel (%.2f W) supera el límite MPPT del inversor (%.2f W). Selecciona otro inversor o panel.',
+                        $panelPowerW,
                         $panelLimitW,
                     ),
                 ]);
             }
 
+            $inverterCount = max(1, $inverterCount);
+
+            while (ceil($requiredPanelCount / $inverterCount) * $panelPowerW > $panelLimitW) {
+                $inverterCount++;
+            }
+
+            $stringCount = $inverterCount;
+            $panelsPerString = (int) ceil($requiredPanelCount / $stringCount);
+
             $panelCount = $panelsPerString * $stringCount;
+            $previousDesign = $project->systemDesign;
+
+            if ($previousDesign === null || (int) $previousDesign->panels_per_string !== $panelsPerString || (int) $previousDesign->inverter_count !== $inverterCount) {
+                $project->stringRows()->delete();
+            }
+
             $design = $project->systemDesign()->updateOrCreate([], [
                 'solar_panel_equipment_id' => $panel->id,
                 'inverter_equipment_id' => $inverter->id,
@@ -125,6 +136,71 @@ class SolarProjectCalculator
         });
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function explainDesign(SolarProject $project, SolarProjectSystemDesign $design): array
+    {
+        $design->loadMissing('solarPanel.solarPanelSpec', 'inverter.inverterSpec', 'battery.batterySpec');
+        $panelSpec = $design->solarPanel->solarPanelSpec;
+        $inverterSpec = $design->inverter->inverterSpec;
+        $batterySpec = $design->battery->batterySpec;
+        $totalOversizing = (float) $design->total_oversizing_percent / 100;
+        $nightOversizing = (float) $design->night_oversizing_percent / 100;
+        $discharge = (float) $design->max_battery_discharge_percent / 100;
+
+        $requiredPanels = (int) ceil(((float) $project->total_consumption_wh_per_day * (1 + $totalOversizing)) / ((float) $panelSpec->max_power_w * (float) $project->solar_hours_per_day));
+        $inverterByOutput = max(1, (int) ceil(((float) $project->maximum_hourly_power_w * (1 + $totalOversizing)) / (float) $inverterSpec->max_output_power_w));
+        $batteryEnergyWh = (float) $batterySpec->capacity_ah * (float) $batterySpec->voltage_v;
+        $format = fn (float $value): string => number_format($value, 2, ',', '.');
+
+        $panels = sprintf(
+            '%s: se necesitan %d paneles; la demanda de %s Wh/día con %s%% de sobredimensionamiento y %s horas solares requiere %d paneles',
+            $design->solarPanel->name,
+            $design->panel_count,
+            $format((float) $project->total_consumption_wh_per_day),
+            $format((float) $design->total_oversizing_percent),
+            $format((float) $project->solar_hours_per_day),
+            $requiredPanels,
+        );
+        $panels .= $design->panel_count > $requiredPanels
+            ? sprintf(', y se agregaron %d para que los %d strings tengan %d paneles cada uno.', $design->panel_count - $requiredPanels, $design->inverter_count, $design->panels_per_string)
+            : '.';
+
+        $inverters = sprintf(
+            '%s: se necesitan %d inversores; por potencia de salida (%s W pico con sobredimensionamiento sobre %s W por inversor) bastarían %d',
+            $design->inverter->name,
+            $design->inverter_count,
+            $format((float) $project->maximum_hourly_power_w * (1 + $totalOversizing)),
+            $format((float) $inverterSpec->max_output_power_w),
+            $inverterByOutput,
+        );
+        $inverters .= $design->inverter_count > $inverterByOutput
+            ? sprintf(', pero se aumentó para que cada string no supere el límite MPPT de %s W.', $format((float) $inverterSpec->mppt_max_power_w))
+            : '.';
+
+        $batteries = sprintf(
+            '%s: se necesitan %d baterías; el consumo nocturno de %s Wh/día con %s%% de sobredimensionamiento y %s%% de descarga máxima, sobre %s Wh por batería (%s Ah × %s V).',
+            $design->battery->name,
+            $design->battery_count,
+            $format((float) $project->night_consumption_wh_per_day),
+            $format($nightOversizing * 100),
+            $format($discharge * 100),
+            $format($batteryEnergyWh),
+            $format((float) $batterySpec->capacity_ah),
+            $format((float) $batterySpec->voltage_v),
+        );
+
+        $strings = sprintf(
+            'Strings: se forman %d strings, uno por inversor, con %d paneles cada uno (%s W por string).',
+            $design->inverter_count,
+            $design->panels_per_string,
+            $format($design->panels_per_string * (float) $panelSpec->max_power_w),
+        );
+
+        return compact('panels', 'inverters', 'batteries', 'strings');
+    }
+
     private function refreshProjectTotals(SolarProject $project): void
     {
         $totals = $project->applianceItems()
@@ -137,6 +213,8 @@ class SolarProjectCalculator
             'maximum_hourly_power_w' => (int) $totals->item_count > 0 ? round((float) $totals->peak_w, 2) : null,
             'solar_string_count' => null,
         ])->save();
+
+        $project->stringRows()->delete();
 
         $project->systemDesign()->update([
             'panel_count' => null,

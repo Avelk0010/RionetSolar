@@ -56,6 +56,14 @@ class InstallationMaterialController extends Controller
         return redirect()->route('admin.installation-materials.show', $material)->with('success', 'Material de instalación actualizado correctamente.');
     }
 
+    public function forceDestroy(InstallationMaterial $material): RedirectResponse
+    {
+        $material->delete();
+
+        return redirect()->route('admin.installation-materials.index')
+            ->with('success', 'Material eliminado definitivamente.');
+    }
+
     public function destroy(InstallationMaterial $material): RedirectResponse
     {
         $material->update(['is_active' => false]);

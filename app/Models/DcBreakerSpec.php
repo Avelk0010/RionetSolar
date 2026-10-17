@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DcBreakerSpec extends Model
 {
     protected $fillable = [
-        'electrical_equipment_id', 'min_operating_voltage_v', 'max_operating_voltage_v', 'rated_current_a',
+        'electrical_equipment_id', 'poles', 'min_operating_voltage_v', 'max_operating_voltage_v', 'rated_current_a',
     ];
 
     public function equipment(): BelongsTo

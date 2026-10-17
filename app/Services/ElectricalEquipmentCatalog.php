@@ -61,8 +61,9 @@ class ElectricalEquipmentCatalog
         ],
         'breakers-dc' => [
             'relation' => 'dcBreakerSpec',
-            'fields' => ['min_operating_voltage_v', 'max_operating_voltage_v', 'rated_current_a'],
+            'fields' => ['poles', 'min_operating_voltage_v', 'max_operating_voltage_v', 'rated_current_a'],
             'rules' => [
+                'poles' => ['required', 'integer', 'between:1,4'],
                 'min_operating_voltage_v' => ['required', 'numeric', 'gt:0'],
                 'max_operating_voltage_v' => ['required', 'numeric', 'gt:0', 'gte:min_operating_voltage_v'],
                 'rated_current_a' => ['required', 'numeric', 'gt:0'],
@@ -71,9 +72,10 @@ class ElectricalEquipmentCatalog
         ],
         'breakers-ac' => [
             'relation' => 'acBreakerSpec',
-            'fields' => ['operating_voltage_v', 'rated_current_a'],
+            'fields' => ['poles', 'operating_voltage_v', 'rated_current_a'],
             'rules' => [
-                'operating_voltage_v' => ['required', 'integer', 'in:110,220'],
+                'poles' => ['required', 'integer', 'between:1,4'],
+                'operating_voltage_v' => ['required', 'numeric', 'gt:0'],
                 'rated_current_a' => ['required', 'numeric', 'gt:0'],
             ],
             'model' => AcBreakerSpec::class,

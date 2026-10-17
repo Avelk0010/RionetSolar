@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\InstallationMaterialCategory;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,11 +12,11 @@ class InstallationMaterial extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'description', 'price', 'unit', 'sku', 'is_active'];
+    protected $fillable = ['name', 'description', 'price', 'unit', 'category', 'sku', 'is_active'];
 
     protected function casts(): array
     {
-        return ['price' => 'decimal:2', 'is_active' => 'boolean'];
+        return ['price' => 'decimal:2', 'is_active' => 'boolean', 'category' => InstallationMaterialCategory::class];
     }
 
     #[Scope]

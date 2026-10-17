@@ -22,6 +22,7 @@ class InstallationMaterialFactory extends Factory
             'description' => fake()->optional()->sentence(),
             'price' => fake()->randomFloat(2, 0, 1000000),
             'unit' => 'unidad',
+            'category' => 'otro',
             'sku' => null,
             'is_active' => true,
         ];

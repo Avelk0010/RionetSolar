@@ -112,6 +112,7 @@ abstract class ElectricalEquipmentRequest extends FormRequest
             'min_operating_voltage_v' => 'voltaje mínimo de operación (V)',
             'max_operating_voltage_v' => 'voltaje máximo de operación (V)',
             'operating_voltage_v' => 'voltaje de operación (V)',
+            'poles' => 'cantidad de polos',
             'rated_current_a' => 'corriente nominal (A)',
             'awg_gauge' => 'calibre AWG',
             'diameter_mm' => 'diámetro (mm)',

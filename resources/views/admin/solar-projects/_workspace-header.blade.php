@@ -10,4 +10,5 @@
 <nav class="mb-7 flex flex-wrap gap-2 border-b border-[#dce6e1] pb-3" aria-label="Submódulos del proyecto">
     <a href="{{ route('admin.solar-projects.loads.index', $project) }}" @if($activeModule === 'loads') aria-current="page" @endif class="{{ $activeModule === 'loads' ? 'button-primary' : 'button-secondary bg-white' }} rounded-md px-4 py-2 text-sm font-semibold">Cargas eléctricas</a>
     <a href="{{ route('admin.solar-projects.system-design.show', $project) }}" @if($activeModule === 'design') aria-current="page" @endif class="{{ $activeModule === 'design' ? 'button-primary' : 'button-secondary bg-white' }} rounded-md px-4 py-2 text-sm font-semibold">Dimensionamiento</a>
+    <a href="{{ route('admin.solar-projects.quote.show', $project) }}" @if($activeModule === 'quote') aria-current="page" @endif class="{{ $activeModule === 'quote' ? 'button-primary' : 'button-secondary bg-white' }} rounded-md px-4 py-2 text-sm font-semibold">Cotización</a>
 </nav>

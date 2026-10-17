@@ -36,4 +36,14 @@ class SolarProject extends Model
     {
         return $this->hasOne(SolarProjectSystemDesign::class);
     }
+
+    public function stringRows(): HasMany
+    {
+        return $this->hasMany(SolarProjectStringRow::class);
+    }
+
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(SolarProjectQuote::class)->latest()->latest('id');
+    }
 }

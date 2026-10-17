@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ElectricalEquipmentController;
 use App\Http\Controllers\Admin\InstallationMaterialController;
 use App\Http\Controllers\Admin\SolarProjectApplianceController;
 use App\Http\Controllers\Admin\SolarProjectController;
+use App\Http\Controllers\Admin\SolarProjectQuoteController;
 use App\Http\Controllers\Admin\SolarProjectSystemDesignController;
 use App\Models\Appliance;
 use App\Models\ElectricalEquipment;
@@ -25,6 +26,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::resource('appliances', ApplianceController::class);
     Route::resource('electrical-equipment', ElectricalEquipmentController::class)
         ->parameters(['electrical-equipment' => 'equipment']);
+    Route::delete('installation-materials/{material}/permanent', [InstallationMaterialController::class, 'forceDestroy'])
+        ->name('installation-materials.force-destroy');
     Route::resource('installation-materials', InstallationMaterialController::class)
         ->parameters(['installation-materials' => 'material']);
     Route::resource('solar-projects', SolarProjectController::class)
@@ -40,4 +43,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         ->name('solar-projects.system-design.show');
     Route::put('solar-projects/{solarProject}/system-design', [SolarProjectSystemDesignController::class, 'update'])
         ->name('solar-projects.system-design.update');
+    Route::put('solar-projects/{solarProject}/system-design/string-rows', [SolarProjectSystemDesignController::class, 'updateStringRows'])
+        ->name('solar-projects.system-design.string-rows.update');
+    Route::get('solar-projects/{solarProject}/quote', [SolarProjectQuoteController::class, 'show'])
+        ->name('solar-projects.quote.show');
+    Route::post('solar-projects/{solarProject}/quote', [SolarProjectQuoteController::class, 'store'])
+        ->name('solar-projects.quote.store');
+    Route::get('solar-projects/{solarProject}/quotes/{quote}', [SolarProjectQuoteController::class, 'showSaved'])
+        ->whereNumber('quote')
+        ->name('solar-projects.quotes.show');
 });

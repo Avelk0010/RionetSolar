@@ -3,6 +3,7 @@
 use App\Models\Appliance;
 use App\Models\ElectricalEquipment;
 use App\Models\ElectricalEquipmentCategory;
+use App\Models\InstallationMaterial;
 use Database\Seeders\ElectricalEquipmentCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -88,9 +89,9 @@ test('creates equipment and its matching technical sheet for every supported cat
     ]],
     'battery' => ['baterias', 'battery_specs', ['capacity_ah' => 100, 'voltage_v' => 48]],
     'DC breaker' => ['breakers-dc', 'dc_breaker_specs', [
-        'min_operating_voltage_v' => 12, 'max_operating_voltage_v' => 600, 'rated_current_a' => 32,
+        'poles' => 2, 'min_operating_voltage_v' => 12, 'max_operating_voltage_v' => 600, 'rated_current_a' => 32,
     ]],
-    'AC breaker' => ['breakers-ac', 'ac_breaker_specs', ['operating_voltage_v' => 220, 'rated_current_a' => 32]],
+    'AC breaker' => ['breakers-ac', 'ac_breaker_specs', ['poles' => 2, 'operating_voltage_v' => 240, 'rated_current_a' => 32]],
     'solar cable' => ['cable-solar', 'solar_cable_specs', [
         'awg_gauge' => '4/0', 'diameter_mm' => 11.7, 'nominal_voltage_dc_v' => 1000,
     ]],
@@ -196,13 +197,13 @@ test('updates an equipment record and its technical sheet together', function ()
 
 test('creates materials and rejects negative prices', function () {
     $response = $this->post(route('admin.installation-materials.store'), [
-        'name' => 'Riel de prueba', 'price' => '12500.50', 'unit' => 'metro',
+        'name' => 'Riel de prueba', 'price' => '12500.50', 'unit' => 'metro', 'category' => 'otro',
     ]);
 
     $response->assertRedirect();
     $this->assertDatabaseHas('installation_materials', ['name' => 'Riel de prueba', 'price' => '12500.50']);
     $response = $this->post(route('admin.installation-materials.store'), [
-        'name' => 'Material inválido', 'price' => -1, 'unit' => 'unidad',
+        'name' => 'Material inválido', 'price' => -1, 'unit' => 'unidad', 'category' => 'otro',
     ]);
 
     $response->assertSessionHasErrors('price');
@@ -230,4 +231,38 @@ test('inactive appliances remain available in catalog filters', function () {
         ->assertSee($appliance->name);
 
     expect(Appliance::active()->count())->toBe(0);
+});
+
+test('single-entry material categories accept only one material but "otro" accepts many', function () {
+    $material = ['price' => 1000, 'unit' => 'unidad'];
+
+    $this->post(route('admin.installation-materials.store'), $material + ['name' => 'Riel A', 'category' => 'riel-estructura-solar'])->assertRedirect();
+    $this->post(route('admin.installation-materials.store'), $material + ['name' => 'Riel B', 'category' => 'riel-estructura-solar'])->assertSessionHasErrors('category');
+    $this->post(route('admin.installation-materials.store'), $material + ['name' => 'Tornillo', 'category' => 'otro'])->assertRedirect();
+    $this->post(route('admin.installation-materials.store'), $material + ['name' => 'Arandela', 'category' => 'otro'])->assertRedirect();
+    $this->post(route('admin.installation-materials.store'), $material + ['name' => 'Sin categoría'])->assertSessionHasErrors('category');
+
+    $this->assertDatabaseCount('installation_materials', 3);
+});
+
+test('a single-entry material can be updated without clashing with itself', function () {
+    $rail = InstallationMaterial::factory()->create(['category' => 'riel-estructura-solar']);
+
+    $this->put(route('admin.installation-materials.update', $rail), [
+        'name' => 'Riel renombrado', 'price' => 2000, 'unit' => 'unidad', 'category' => 'riel-estructura-solar',
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('installation_materials', ['id' => $rail->id, 'name' => 'Riel renombrado']);
+});
+
+test('a material can be permanently deleted from its form, freeing its category', function () {
+    $rail = InstallationMaterial::factory()->create(['category' => 'riel-estructura-solar', 'is_active' => false]);
+
+    $this->get(route('admin.installation-materials.edit', $rail))->assertOk()->assertSee('Eliminar material');
+    $this->delete(route('admin.installation-materials.force-destroy', $rail))->assertRedirect(route('admin.installation-materials.index'));
+
+    $this->assertDatabaseMissing('installation_materials', ['id' => $rail->id]);
+    $this->post(route('admin.installation-materials.store'), [
+        'name' => 'Riel nuevo', 'price' => 1000, 'unit' => 'unidad', 'category' => 'riel-estructura-solar',
+    ])->assertRedirect();
 });

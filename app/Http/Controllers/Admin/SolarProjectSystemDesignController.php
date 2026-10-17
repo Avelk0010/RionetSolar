@@ -3,20 +3,28 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SaveSolarProjectStringRowsRequest;
 use App\Http\Requests\Admin\SaveSolarProjectSystemDesignRequest;
 use App\Models\ElectricalEquipment;
 use App\Models\SolarProject;
 use App\Services\SolarProjectCalculator;
+use App\Services\SolarProjectMaterialCalculator;
+use App\Services\SolarProjectProtectionRecommender;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class SolarProjectSystemDesignController extends Controller
 {
-    public function show(SolarProject $solarProject): View
+    public function show(SolarProject $solarProject, SolarProjectCalculator $calculator, SolarProjectProtectionRecommender $protectionRecommender, SolarProjectMaterialCalculator $materialCalculator): View
     {
         $solarProject->load('systemDesign.solarPanel', 'systemDesign.inverter', 'systemDesign.battery');
         $design = $solarProject->systemDesign;
+        $explanations = $design?->panel_count !== null ? $calculator->explainDesign($solarProject, $design) : [];
+        $protections = $design?->panel_count !== null ? $protectionRecommender->recommend($design) : [];
+        $stringLayout = $design?->panel_count !== null ? $materialCalculator->layout($solarProject, $design) : [];
+        $materials = $stringLayout !== [] ? $materialCalculator->calculate($stringLayout) : [];
+        $materialCatalog = $stringLayout !== [] ? $materialCalculator->catalogItems() : [];
 
         $panels = $this->equipmentOptions('paneles-solares', $design?->solar_panel_equipment_id, 'solarPanelSpec');
         $inverters = $this->equipmentOptions('inversores', $design?->inverter_equipment_id, 'inverterSpec');
@@ -28,6 +36,11 @@ class SolarProjectSystemDesignController extends Controller
             'panels' => $panels,
             'inverters' => $inverters,
             'batteries' => $batteries,
+            'explanations' => $explanations,
+            'protections' => $protections,
+            'stringLayout' => $stringLayout,
+            'materials' => $materials,
+            'materialCatalog' => $materialCatalog,
         ]);
     }
 
@@ -40,6 +53,17 @@ class SolarProjectSystemDesignController extends Controller
 
         return redirect()->route('admin.solar-projects.system-design.show', $solarProject)
             ->with('success', 'Dimensionamiento guardado y cantidades calculadas.');
+    }
+
+    public function updateStringRows(
+        SaveSolarProjectStringRowsRequest $request,
+        SolarProject $solarProject,
+        SolarProjectMaterialCalculator $materialCalculator,
+    ): RedirectResponse {
+        $materialCalculator->saveLayout($solarProject, $request->parsedRows());
+
+        return redirect()->route('admin.solar-projects.system-design.show', $solarProject)
+            ->with('success', 'Distribución de filas guardada y materiales recalculados.');
     }
 
     private function equipmentOptions(string $categorySlug, ?int $selectedId, string $specificationRelation)

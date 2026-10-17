@@ -63,6 +63,7 @@
 
     <fieldset data-spec-group="breakers-dc" class="grid gap-5 sm:grid-cols-2" hidden>
         <legend class="sr-only">Especificaciones del breaker DC</legend>
+        @include('admin.electrical-equipment._poles-field', ['fieldId' => 'dc_poles', 'selected' => $equipment?->dcBreakerSpec?->poles])
         <x-input-field name="min_operating_voltage_v" label="Voltaje mínimo de operación (V)" type="number" step="any" min="0.001" :value="$equipment?->dcBreakerSpec?->min_operating_voltage_v" required />
         <x-input-field name="max_operating_voltage_v" label="Voltaje máximo de operación (V)" type="number" step="any" min="0.001" :value="$equipment?->dcBreakerSpec?->max_operating_voltage_v" required />
         <x-input-field name="rated_current_a" label="Corriente nominal (A)" type="number" step="any" min="0.001" :value="$equipment?->dcBreakerSpec?->rated_current_a" required />
@@ -70,7 +71,8 @@
 
     <fieldset data-spec-group="breakers-ac" class="grid gap-5 sm:grid-cols-2" hidden>
         <legend class="sr-only">Especificaciones del breaker AC</legend>
-        <div class="space-y-1.5"><label for="operating_voltage_v" class="block text-sm font-medium text-[#294751]">Voltaje de operación (V) *</label><select id="operating_voltage_v" name="operating_voltage_v" class="field-control block w-full rounded-md px-3 py-2.5 text-sm"><option value="">Selecciona</option><option value="110" @selected((string) old('operating_voltage_v', $equipment?->acBreakerSpec?->operating_voltage_v) === '110')>110 V</option><option value="220" @selected((string) old('operating_voltage_v', $equipment?->acBreakerSpec?->operating_voltage_v) === '220')>220 V</option></select>@error('operating_voltage_v')<p class="text-xs text-[#b43f35]">{{ $message }}</p>@enderror</div>
+        @include('admin.electrical-equipment._poles-field', ['fieldId' => 'ac_poles', 'selected' => $equipment?->acBreakerSpec?->poles])
+        <x-input-field name="operating_voltage_v" label="Voltaje de operación (V)" type="number" step="any" min="0.001" :value="$equipment?->acBreakerSpec?->operating_voltage_v" required />
         <x-input-field name="rated_current_a" label="Corriente nominal (A)" type="number" step="any" min="0.001" :value="$equipment?->acBreakerSpec?->rated_current_a" required />
     </fieldset>
 
