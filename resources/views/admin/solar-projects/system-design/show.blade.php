@@ -95,7 +95,6 @@
                 <h3 class="font-semibold text-[#173b49]">Breakers y protecciones</h3>
                 <div class="mt-4 space-y-5">
                     @foreach($protections as $protection)
-                        @php($spec = $protection['item']?->dcBreakerSpec ?? $protection['item']?->acBreakerSpec)
                         <div class="border border-[#dce6e1] bg-[#f8faf7] p-4">
                             <p class="text-sm font-semibold text-[#173b49]">{{ $protection['title'] }}</p>
                             <p class="mt-1 text-sm text-[#526a70]">{{ $protection['recommendation'] }}</p>
@@ -103,7 +102,7 @@
                                 <div class="mt-3 overflow-x-auto bg-white">
                                     <table class="w-full min-w-[560px] text-left text-sm">
                                         <thead class="border-y border-[#dce6e1] text-xs uppercase tracking-wide text-[#597078]"><tr><th class="px-3 py-2 font-semibold">Equipo del catálogo</th><th class="px-3 py-2 font-semibold">Polos</th><th class="px-3 py-2 font-semibold">Voltaje (V)</th><th class="px-3 py-2 font-semibold">Corriente (A)</th><th class="px-3 py-2 font-semibold">Cantidad</th></tr></thead>
-                                        <tbody><tr><td class="px-3 py-2 font-semibold text-[#155a91]"><a href="{{ route('admin.electrical-equipment.show', $protection['item']) }}" class="hover:underline">{{ $protection['item']->name }}</a></td><td class="px-3 py-2">{{ $spec->poles }}</td><td class="px-3 py-2">{{ number_format((float) ($spec->max_operating_voltage_v ?? $spec->operating_voltage_v), 2, ',', '.') }}</td><td class="px-3 py-2">{{ number_format((float) $spec->rated_current_a, 2, ',', '.') }}</td><td class="px-3 py-2 font-semibold">{{ $protection['quantity'] }}</td></tr></tbody>
+                                        <tbody><tr><td class="px-3 py-2 font-semibold text-[#155a91]"><a href="{{ route('admin.electrical-equipment.show', $protection['item']) }}" class="hover:underline">{{ $protection['item']->name }}</a></td><td class="px-3 py-2">{{ $protection['item']->dcBreakerSpec?->poles ?? $protection['item']->acBreakerSpec?->poles }}</td><td class="px-3 py-2">{{ number_format((float) ($protection['item']->dcBreakerSpec?->max_operating_voltage_v ?? $protection['item']->acBreakerSpec?->operating_voltage_v), 2, ',', '.') }}</td><td class="px-3 py-2">{{ number_format((float) ($protection['item']->dcBreakerSpec?->rated_current_a ?? $protection['item']->acBreakerSpec?->rated_current_a), 2, ',', '.') }}</td><td class="px-3 py-2 font-semibold">{{ $protection['quantity'] }}</td></tr></tbody>
                                     </table>
                                 </div>
                             @else
@@ -122,6 +121,15 @@
                     <li>{{ $explanations['strings'] }}</li>
                 </ul>
             </div>
+            @php
+                $dcProtection = collect($protections)->firstWhere('title', 'Breakers DC para strings');
+                $acInputProtection = collect($protections)->firstWhere('title', 'Breakers AC de entrada');
+                $acOutputProtection = collect($protections)->firstWhere('title', 'Breakers AC de salida');
+            @endphp
+            <section class="mt-5 border-y border-[#dce6e1] bg-white p-5 sm:p-7" aria-labelledby="system-diagram-title">
+                <div class="mb-5"><p class="text-xs font-bold uppercase tracking-[0.14em] text-[#5f963f]">Plano eléctrico</p><h3 id="system-diagram-title" class="mt-1 text-lg font-semibold text-[#173b49]">Diagrama del sistema</h3></div>
+                @include('admin.solar-projects.system-design._reference-diagram')
+            </section>
         @elseif($design)
             <div role="status" class="border-l-4 border-[#f3bd35] bg-[#fff9e9] px-4 py-3 text-sm text-[#6e5a22]">El consumo del proyecto cambió. Guarda el dimensionamiento nuevamente para recalcular las cantidades.</div>
         @else

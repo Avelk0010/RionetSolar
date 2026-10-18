@@ -148,10 +148,24 @@ test('solar design rounds panels evenly across inverter strings and uses battery
     expect($design->panels_per_string)->toBe(5);
     expect((float) $design->array_power_w)->toBe(5000.0);
     expect($project->fresh()->solar_string_count)->toBe(2);
-    $this->get(route('admin.solar-projects.system-design.show', $project))
-        ->assertOk()
+    $diagramResponse = $this->get(route('admin.solar-projects.system-design.show', $project));
+    $diagramResponse->assertOk()
         ->assertSee('String 1')
-        ->assertSee('5 paneles');
+        ->assertSee('5 paneles')
+        ->assertSee('Diagrama del sistema')
+        ->assertSee('Campo fotovoltaico')
+        ->assertSee('10 paneles')
+        ->assertSee('Protecciones DC')
+        ->assertSee('2 inversores')
+        ->assertSee('1 batería')
+        ->assertSee('Breaker AC input')
+        ->assertSee('Breaker AC output')
+        ->assertSee('Baterías')
+        ->assertSee('Cargas AC');
+
+    expect(substr_count($diagramResponse->getContent(), asset('images/diagrama/panel.png')))->toBe(10);
+    expect(substr_count($diagramResponse->getContent(), asset('images/diagrama/inversor.png')))->toBe(2);
+    expect(substr_count($diagramResponse->getContent(), asset('images/diagrama/bateria.png')))->toBe(1);
 
     $appliance = Appliance::factory()->create(['energy_consumption_wh' => 100]);
     $this->post(route('admin.solar-projects.loads.store', $project), [
