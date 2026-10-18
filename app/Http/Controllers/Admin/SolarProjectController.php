@@ -34,7 +34,7 @@ class SolarProjectController extends Controller
      */
     public function create(): View
     {
-        return view('admin.solar-projects.create');
+        return view('admin.solar-projects.create', ['project' => new SolarProject]);
     }
 
     /**

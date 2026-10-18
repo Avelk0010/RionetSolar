@@ -10,10 +10,22 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SolarProject extends Model
 {
+    public const DEFAULT_PROJECT_WARRANTY = <<<'WARRANTY'
+Garantía del proyecto directamente con la empresa instaladora RIONET ISP SAS
+
+- Paneles Solares: 10 años
+- Inversores: 5 años
+- Baterías: 5 años
+
+Nota: La garantía no cubre daños por golpes contundentes, equipos visiblemente maltratados y daños por mal manejo o manipulación de equipos instalados por parte de terceros ajenos a RIONET ISP SAS
+WARRANTY;
+
     /** @use HasFactory<SolarProjectFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'description', 'solar_hours_per_day', 'latitude', 'longitude'];
+    protected $fillable = ['name', 'description', 'project_warranty', 'solar_hours_per_day', 'latitude', 'longitude'];
+
+    protected $attributes = ['project_warranty' => self::DEFAULT_PROJECT_WARRANTY];
 
     protected function casts(): array
     {

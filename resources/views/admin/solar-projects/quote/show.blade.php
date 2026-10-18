@@ -11,13 +11,20 @@
         <section class="mb-8 border-y border-[#dce6e1] bg-white p-5 sm:p-7">
             <div class="mb-5"><p class="text-xs font-bold uppercase tracking-[0.14em] text-[#5f963f]">Submódulo 3</p><h2 class="mt-1 text-lg font-semibold text-[#173b49]">Nueva cotización</h2><p class="mt-1 text-sm text-[#687b80]">Cantidad final = cantidad del dimensionamiento + (+/-). Valor total = cantidad final × valor unitario, más impuesto, menos descuento.</p></div>
 
+            <section class="mb-6 border-y border-[#dce6e1] bg-[#f8faf7] py-4" aria-labelledby="quote-diagram-title">
+                <div class="mb-3"><p class="text-xs font-bold uppercase tracking-[0.14em] text-[#5f963f]">Escenario de cotización</p><h3 id="quote-diagram-title" class="mt-1 text-base font-semibold text-[#173b49]">Diagrama del sistema</h3><p class="mt-1 text-xs text-[#718187]">Al ajustar paneles se recalculan strings, inversores y protecciones para respetar el límite MPPT.</p></div>
+                <p data-quote-scenario-status class="mb-3 text-xs text-[#526a70]" aria-live="polite"></p>
+                <div data-quote-diagram>@include('admin.solar-projects.quote._diagram-preview', ['diagram' => $diagram])</div>
+            </section>
+
             @if(count($missing))
                 <div role="status" class="mb-5 border-l-4 border-[#f3bd35] bg-[#fff9e9] px-4 py-3 text-sm text-[#6e5a22]">No hay registro activo en el catálogo para: {{ implode(', ', $missing) }}. No se incluyeron; puedes agregarlos con "Agregar ítem" cuando existan.</div>
             @endif
 
-            <form method="POST" action="{{ route('admin.solar-projects.quote.store', $project) }}" data-quote-form data-next-index="{{ count($rows) }}" novalidate>
+            <form method="POST" action="{{ route('admin.solar-projects.quote.store', $project) }}" data-quote-form data-preview-url="{{ $previewUrl }}" data-next-index="{{ count($rows) }}" novalidate>
                 @csrf
                 @error('lines')<p class="mb-3 text-sm text-[#b43f35]">{{ $message }}</p>@enderror
+                <p data-quote-scenario-error class="mb-3 border-l-4 border-[#b43f35] bg-[#fff4f2] px-3 py-2 text-sm text-[#a5443a]" role="alert" hidden></p>
                 <div class="mb-6 grid gap-5 sm:grid-cols-2">
                     <x-input-field name="name" label="Nombre de la cotización" :value="old('name')" placeholder="Ej. Sistema residencial – Fam. Pérez" required />
                     <x-input-field name="description" label="Descripción" type="textarea" :rows="2" :value="old('description')" />
@@ -35,7 +42,7 @@
                     </table>
                 </div>
                 <template data-quote-row-template>
-                    @include('admin.solar-projects.quote._row', ['row' => ['item' => '', 'key' => null, 'name' => '', 'concept' => null, 'base' => 0, 'adjustment' => 1, 'unit_price' => 0, 'tax' => 0, 'discount' => 0, 'manual' => true], 'index' => '__INDEX__', 'options' => $options])
+                    @include('admin.solar-projects.quote._row', ['row' => ['item' => '', 'key' => null, 'name' => '', 'concept' => null, 'base' => 0, 'adjustment' => 1, 'unit_price' => 0, 'tax' => 0, 'discount' => 0, 'manual' => true, 'editable' => true, 'removable' => true], 'index' => '__INDEX__', 'options' => $options])
                 </template>
                 <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <button type="button" data-add-quote-row class="button-secondary rounded-md bg-white px-4 py-2 text-sm font-semibold">+ Agregar ítem</button>
@@ -51,7 +58,7 @@
                     <thead class="border-b border-[#dce6e1] bg-[#f4f8f3] text-xs uppercase tracking-wide text-[#597078]"><tr><th class="px-4 py-3 font-semibold">Cotización</th><th class="px-4 py-3 font-semibold">Fecha</th><th class="px-4 py-3 text-right font-semibold">Total (COP)</th><th class="px-4 py-3 text-right font-semibold">Acción</th></tr></thead>
                     <tbody class="divide-y divide-[#e8eeea]">
                         @forelse($quotes as $quote)
-                            <tr><td class="px-4 py-3 font-semibold text-[#173b49]">N.° {{ $quote->id }}@if($quote->name) · {{ $quote->name }}@endif</td><td class="px-4 py-3">{{ $quote->created_at->format('d/m/Y H:i') }}</td><td class="px-4 py-3 text-right">$ {{ number_format((float) $quote->total, 2, ',', '.') }}</td><td class="px-4 py-3 text-right"><div class="flex justify-end gap-3 text-xs font-semibold"><a href="{{ route('admin.solar-projects.quotes.show', [$project, $quote->id]) }}" class="text-[#155a91] hover:underline">Ver</a>@if($quote->snapshot !== null)<a href="{{ route('admin.solar-projects.quotes.sheet', [$project, $quote->id]) }}" target="_blank" rel="noopener" class="text-[#557c39] hover:underline">Ficha</a>@endif</div></td></tr>
+                            <tr><td class="px-4 py-3 font-semibold text-[#173b49]">N.° {{ $quote->folio }}@if($quote->name) · {{ $quote->name }}@endif</td><td class="px-4 py-3">{{ $quote->created_at->format('d/m/Y H:i') }}</td><td class="px-4 py-3 text-right">$ {{ number_format((float) $quote->total, 2, ',', '.') }}</td><td class="px-4 py-3 text-right"><div class="flex flex-wrap items-center justify-end gap-3 text-xs font-semibold"><a href="{{ route('admin.solar-projects.quotes.show', [$project, $quote->id]) }}" class="text-[#155a91] hover:underline">Ver</a>@if($quote->snapshot !== null)<a href="{{ route('admin.solar-projects.quotes.sheet', [$project, $quote->id]) }}" target="_blank" rel="noopener" class="text-[#557c39] hover:underline">Ficha</a>@endif<form method="POST" action="{{ route('admin.solar-projects.quotes.destroy', [$project, $quote->id]) }}" onsubmit="return confirm('¿Eliminar definitivamente la cotización N.° {{ $quote->folio }}?');">@csrf @method('DELETE')<button class="text-[#a5443a] hover:underline">Eliminar</button></form></div></td></tr>
                         @empty
                             <tr><td colspan="4" class="px-4 py-10 text-center text-sm text-[#718187]">Todavía no hay cotizaciones guardadas.</td></tr>
                         @endforelse

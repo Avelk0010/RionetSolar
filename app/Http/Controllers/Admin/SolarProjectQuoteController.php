@@ -7,7 +7,9 @@ use App\Http\Requests\Admin\SaveSolarProjectQuoteRequest;
 use App\Models\SolarProject;
 use App\Services\SolarProjectQuoteBuilder;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -26,6 +28,7 @@ class SolarProjectQuoteController extends Controller
             $auto = $builder->autoLines($solarProject, $design);
             $missing = $auto['missing'];
             $rows = session()->hasOldInput() ? $this->rowsFromOldInput($builder, collect($auto['lines'])->keyBy('key')) : $this->rowsFromAutoLines($auto['lines']);
+            $scenario = $builder->quoteScenario($solarProject, $design, []);
         }
 
         return view('admin.solar-projects.quote.show', [
@@ -33,8 +36,34 @@ class SolarProjectQuoteController extends Controller
             'ready' => $ready,
             'rows' => $rows,
             'missing' => $missing,
+            'diagram' => $scenario['diagram'] ?? null,
+            'previewUrl' => route('admin.solar-projects.quote.preview', $solarProject),
             'options' => $ready ? $builder->itemOptions() : [],
             'quotes' => $solarProject->quotes()->get(),
+        ]);
+    }
+
+    public function preview(Request $request, SolarProject $solarProject, SolarProjectQuoteBuilder $builder): JsonResponse
+    {
+        $design = $solarProject->systemDesign;
+
+        abort_if($design?->panel_count === null, 422, 'Calcula primero el dimensionamiento del proyecto.');
+
+        $validated = $request->validate([
+            'lines' => ['required', 'array'],
+            'lines.*.item' => ['required', 'string', 'regex:/^(equipment|material):[1-9]\d*$/'],
+            'lines.*.line_key' => ['nullable', 'string', 'max:40'],
+            'lines.*.adjustment' => ['required', 'integer', 'between:-100000,100000'],
+        ]);
+
+        $scenario = $builder->quoteScenario($solarProject, $design, $validated['lines']);
+
+        return response()->json([
+            'diagram_html' => view('admin.solar-projects.quote._diagram-preview', ['diagram' => $scenario['diagram']])->render(),
+            'auto_lines' => $scenario['auto_lines'],
+            'effective_adjustments' => $scenario['effective_adjustments'],
+            'requested_panel_count' => $scenario['requested_panel_count'],
+            'balanced_panel_count' => (int) $scenario['design']->panel_count,
         ]);
     }
 
@@ -67,7 +96,7 @@ class SolarProjectQuoteController extends Controller
 
         return Pdf::loadView('admin.solar-projects.quote.sheet', ['quote' => $quote, 'snapshot' => $quote->snapshot])
             ->setPaper('a4')
-            ->stream('ficha-cotizacion-'.$quote->id.'.pdf');
+            ->stream('ficha-cotizacion-'.$quote->folio.'.pdf');
     }
 
     public function showSaved(SolarProject $solarProject, int $quote): View
@@ -76,6 +105,16 @@ class SolarProjectQuoteController extends Controller
             'project' => $solarProject,
             'quote' => $solarProject->quotes()->with('items')->findOrFail($quote),
         ]);
+    }
+
+    public function destroy(SolarProject $solarProject, int $quote): RedirectResponse
+    {
+        $quote = $solarProject->quotes()->findOrFail($quote);
+        $folio = $quote->folio;
+        $quote->delete();
+
+        return redirect()->route('admin.solar-projects.quote.show', $solarProject)
+            ->with('success', 'Cotización N.° '.$folio.' eliminada.');
     }
 
     /**
@@ -95,6 +134,8 @@ class SolarProjectQuoteController extends Controller
             'tax' => 0,
             'discount' => 0,
             'manual' => false,
+            'editable' => $line['key'] === 'panel',
+            'removable' => false,
         ], $lines);
     }
 
@@ -123,6 +164,8 @@ class SolarProjectQuoteController extends Controller
                 'tax' => $line['tax_percent'] ?? 0,
                 'discount' => $line['discount_percent'] ?? 0,
                 'manual' => ! $isAuto,
+                'editable' => $isAuto ? $autoLine['key'] === 'panel' : true,
+                'removable' => ! $isAuto,
             ];
         }
 

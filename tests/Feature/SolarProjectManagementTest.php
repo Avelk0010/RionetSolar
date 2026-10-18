@@ -10,10 +10,41 @@ use Database\Seeders\ElectricalEquipmentCategorySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+test('new solar projects show and persist the default project warranty', function () {
+    $defaultWarranty = <<<'WARRANTY'
+Garantía del proyecto directamente con la empresa instaladora RIONET ISP SAS
+
+- Paneles Solares: 10 años
+- Inversores: 5 años
+- Baterías: 5 años
+
+Nota: La garantía no cubre daños por golpes contundentes, equipos visiblemente maltratados y daños por mal manejo o manipulación de equipos instalados por parte de terceros ajenos a RIONET ISP SAS
+WARRANTY;
+
+    $this->get(route('admin.solar-projects.create'))
+        ->assertOk()
+        ->assertSee('Garantía del proyecto directamente con la empresa instaladora RIONET ISP SAS')
+        ->assertSee('- Paneles Solares: 10 años')
+        ->assertSee('- Inversores: 5 años')
+        ->assertSee('- Baterías: 5 años')
+        ->assertSee('Nota: La garantía no cubre daños por golpes contundentes');
+
+    $this->post(route('admin.solar-projects.store'), [
+        'name' => 'Proyecto con garantía',
+        'project_warranty' => $defaultWarranty,
+        'solar_hours_per_day' => 5,
+    ])->assertRedirect();
+
+    $project = SolarProject::query()->firstOrFail();
+    expect($project->project_warranty)->toBe($defaultWarranty);
+});
+
 test('creates a solar project and opens its project workspace', function () {
     $response = $this->post(route('admin.solar-projects.store'), [
         'name' => 'Sistema residencial',
         'description' => 'Casa de prueba',
+        'project_warranty' => SolarProject::DEFAULT_PROJECT_WARRANTY,
         'solar_hours_per_day' => 5.5,
         'latitude' => 4.711,
         'longitude' => -74.0721,
@@ -51,6 +82,27 @@ test('new projects start with empty calculated totals and no strings', function 
     expect((float) $project->night_consumption_wh_per_day)->toBe(0.0);
     expect($project->maximum_hourly_power_w)->toBeNull();
     expect($project->solar_string_count)->toBeNull();
+});
+
+test('project warranty can be edited after creation', function () {
+    $project = SolarProject::factory()->create();
+    $customWarranty = "Garantía personalizada de RIONET ISP SAS\nVigencia: 7 años";
+
+    $this->get(route('admin.solar-projects.edit', $project))
+        ->assertOk()
+        ->assertSee('Garantías del proyecto')
+        ->assertSee('Paneles Solares: 10 años');
+
+    $this->put(route('admin.solar-projects.update', $project), [
+        'name' => $project->name,
+        'description' => $project->description,
+        'project_warranty' => $customWarranty,
+        'solar_hours_per_day' => $project->solar_hours_per_day,
+        'latitude' => $project->latitude,
+        'longitude' => $project->longitude,
+    ])->assertRedirect(route('admin.solar-projects.show', $project));
+
+    expect($project->fresh()->project_warranty)->toBe($customWarranty);
 });
 
 test('project appliance items belong to their project and master appliance', function () {

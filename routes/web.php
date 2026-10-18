@@ -47,11 +47,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         ->name('solar-projects.system-design.string-rows.update');
     Route::get('solar-projects/{solarProject}/quote', [SolarProjectQuoteController::class, 'show'])
         ->name('solar-projects.quote.show');
+    Route::post('solar-projects/{solarProject}/quote/preview', [SolarProjectQuoteController::class, 'preview'])
+        ->name('solar-projects.quote.preview');
     Route::post('solar-projects/{solarProject}/quote', [SolarProjectQuoteController::class, 'store'])
         ->name('solar-projects.quote.store');
     Route::get('solar-projects/{solarProject}/quotes/{quote}', [SolarProjectQuoteController::class, 'showSaved'])
         ->whereNumber('quote')
         ->name('solar-projects.quotes.show');
+    Route::delete('solar-projects/{solarProject}/quotes/{quote}', [SolarProjectQuoteController::class, 'destroy'])
+        ->whereNumber('quote')
+        ->name('solar-projects.quotes.destroy');
     Route::get('solar-projects/{solarProject}/quotes/{quote}/sheet', [SolarProjectQuoteController::class, 'sheet'])
         ->whereNumber('quote')
         ->name('solar-projects.quotes.sheet');

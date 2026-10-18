@@ -17,6 +17,7 @@ abstract class SolarProjectRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
+            'project_warranty' => ['required', 'string', 'max:10000'],
             'solar_hours_per_day' => ['required', 'numeric', 'gt:0', 'lte:24'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
@@ -48,6 +49,7 @@ abstract class SolarProjectRequest extends FormRequest
         return [
             'name' => 'nombre',
             'description' => 'descripción',
+            'project_warranty' => 'garantía del proyecto',
             'solar_hours_per_day' => 'horas solares al día',
             'latitude' => 'latitud',
             'longitude' => 'longitud',

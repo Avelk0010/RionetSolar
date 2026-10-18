@@ -100,16 +100,11 @@ class SolarProjectCalculator
                 ]);
             }
 
-            $inverterCount = max(1, $inverterCount);
-
-            while (ceil($requiredPanelCount / $inverterCount) * $panelPowerW > $panelLimitW) {
-                $inverterCount++;
-            }
-
-            $stringCount = $inverterCount;
-            $panelsPerString = (int) ceil($requiredPanelCount / $stringCount);
-
-            $panelCount = $panelsPerString * $stringCount;
+            $topology = $this->topologyForPanelCount($requiredPanelCount, $inverterCount, $panelPowerW, $panelLimitW);
+            $inverterCount = $topology['inverter_count'];
+            $stringCount = $topology['string_count'];
+            $panelsPerString = $topology['panels_per_string'];
+            $panelCount = $topology['panel_count'];
             $previousDesign = $project->systemDesign;
 
             if ($previousDesign === null || (int) $previousDesign->panels_per_string !== $panelsPerString || (int) $previousDesign->inverter_count !== $inverterCount) {
@@ -134,6 +129,34 @@ class SolarProjectCalculator
 
             return $design;
         });
+    }
+
+    /**
+     * @return array{panel_count: int, inverter_count: int, string_count: int, panels_per_string: int}
+     */
+    public function topologyForPanelCount(int $requiredPanelCount, int $minimumInverterCount, float $panelPowerW, float $panelLimitW): array
+    {
+        if ($requiredPanelCount < 1 || $panelPowerW > $panelLimitW) {
+            throw ValidationException::withMessages([
+                'lines' => 'La cantidad de paneles no es compatible con el límite MPPT del inversor.',
+            ]);
+        }
+
+        $inverterCount = max(1, $minimumInverterCount);
+
+        while (ceil($requiredPanelCount / $inverterCount) * $panelPowerW > $panelLimitW) {
+            $inverterCount++;
+        }
+
+        $panelsPerString = (int) ceil($requiredPanelCount / $inverterCount);
+        $panelCount = $panelsPerString * $inverterCount;
+
+        return [
+            'panel_count' => $panelCount,
+            'inverter_count' => $inverterCount,
+            'string_count' => $inverterCount,
+            'panels_per_string' => $panelsPerString,
+        ];
     }
 
     /**

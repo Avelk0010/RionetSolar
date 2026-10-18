@@ -99,8 +99,16 @@ document.querySelectorAll('[data-string-rows-form]').forEach((form) => {
 document.querySelectorAll('[data-quote-form]').forEach((form) => {
 	const body = form.querySelector('[data-quote-rows]');
 	const template = form.querySelector('[data-quote-row-template]');
+	const diagram = form.closest('section').querySelector('[data-quote-diagram]');
+	const scenarioStatus = form.closest('section').querySelector('[data-quote-scenario-status]');
+	const scenarioError = form.querySelector('[data-quote-scenario-error]');
+	const submitButton = form.querySelector('.button-primary');
 	const money = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2 });
 	let nextIndex = parseInt(form.dataset.nextIndex, 10) || 0;
+	let requestedPanelAdjustment = body.querySelector('[data-panel-adjustment]')?.value ?? '0';
+	let previewSequence = 0;
+	let previewController;
+	let previewTimer;
 
 	const number = (input) => parseFloat(input.value) || 0;
 
@@ -126,6 +134,86 @@ document.querySelectorAll('[data-quote-form]').forEach((form) => {
 		});
 
 		form.querySelector('[data-grand-total]').textContent = money.format(grand);
+	};
+
+	const requestScenarioPreview = async () => {
+		const sequence = ++previewSequence;
+		previewController?.abort();
+		previewController = new AbortController();
+		scenarioError.hidden = true;
+		scenarioStatus.textContent = 'Recalculando strings, inversores y protecciones…';
+		submitButton.disabled = true;
+
+		const lines = [...body.querySelectorAll('[data-quote-row]')].map((row) => ({
+			item: row.querySelector('[name$="[item]"]')?.value ?? '',
+			line_key: row.dataset.lineKey,
+			adjustment: row.dataset.lineKey === 'panel'
+				? requestedPanelAdjustment
+				: row.querySelector('[data-adjustment]')?.value ?? '0',
+		}));
+
+		try {
+			const response = await fetch(form.dataset.previewUrl, {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json',
+					'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value,
+				},
+				body: JSON.stringify({ lines }),
+				signal: previewController.signal,
+			});
+			const result = await response.json();
+
+			if (sequence !== previewSequence) {
+				return;
+			}
+
+			if (!response.ok) {
+				throw new Error(Object.values(result.errors ?? {}).flat()[0] ?? 'No se pudo validar este escenario.');
+			}
+
+			const rowsByKey = new Map([...body.querySelectorAll('[data-quote-row][data-line-key]')]
+				.filter((row) => row.dataset.lineKey !== '')
+				.map((row) => [row.dataset.lineKey, row]));
+
+			Object.entries(result.effective_adjustments).forEach(([key, adjustment]) => {
+				const row = rowsByKey.get(key);
+				const input = row?.querySelector('[data-adjustment]');
+
+				if (input) {
+					input.value = adjustment;
+				}
+			});
+
+			diagram.innerHTML = result.diagram_html;
+			const panelNote = body.querySelector('[data-panel-balance-note]');
+
+			if (panelNote && result.requested_panel_count !== result.balanced_panel_count) {
+				panelNote.textContent = `${result.requested_panel_count} solicitados; se cotizan ${result.balanced_panel_count} para equilibrar strings.`;
+				panelNote.hidden = false;
+			} else if (panelNote) {
+				panelNote.hidden = true;
+			}
+
+			scenarioStatus.textContent = `${result.balanced_panel_count} paneles distribuidos en strings iguales. Cantidades derivadas actualizadas.`;
+			refresh();
+			submitButton.disabled = false;
+		} catch (error) {
+			if (error.name === 'AbortError' || sequence !== previewSequence) {
+				return;
+			}
+
+			scenarioError.textContent = error.message;
+			scenarioError.hidden = false;
+			scenarioStatus.textContent = 'El escenario no cumple las restricciones del sistema.';
+			submitButton.disabled = true;
+		}
+	};
+
+	const scheduleScenarioPreview = () => {
+		window.clearTimeout(previewTimer);
+		previewTimer = window.setTimeout(requestScenarioPreview, 220);
 	};
 
 	form.querySelector('[data-add-quote-row]').addEventListener('click', () => {
@@ -159,7 +247,14 @@ document.querySelectorAll('[data-quote-form]').forEach((form) => {
 		refresh();
 	});
 
-	form.addEventListener('input', refresh);
+	form.addEventListener('input', (event) => {
+		refresh();
+
+		if (event.target.matches('[data-panel-adjustment]')) {
+			requestedPanelAdjustment = event.target.value;
+			scheduleScenarioPreview();
+		}
+	});
 
 	form.addEventListener('submit', (event) => {
 		const rows = body.querySelectorAll('[data-quote-row]');
@@ -178,5 +273,6 @@ document.querySelectorAll('[data-quote-form]').forEach((form) => {
 	});
 
 	refresh();
+	scheduleScenarioPreview();
 });
 //

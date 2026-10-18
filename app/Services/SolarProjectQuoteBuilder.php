@@ -34,11 +34,11 @@ class SolarProjectQuoteBuilder
      *
      * @return array<string, mixed>
      */
-    public function snapshot(SolarProject $project, SolarProjectSystemDesign $design): array
+    public function snapshot(SolarProject $project, SolarProjectSystemDesign $design, ?array $layout = null): array
     {
         $project->refresh();
-        $design->refresh()->load('solarPanel.solarPanelSpec', 'inverter.inverterSpec', 'battery.batterySpec');
-        $layout = $this->materials->layout($project, $design);
+        $design->loadMissing('solarPanel.solarPanelSpec', 'inverter.inverterSpec', 'battery.batterySpec');
+        $layout ??= $this->materials->layout($project, $design);
         $panelSpec = $design->solarPanel->solarPanelSpec;
         $inverterSpec = $design->inverter->inverterSpec;
         $batterySpec = $design->battery->batterySpec;
@@ -48,6 +48,7 @@ class SolarProjectQuoteBuilder
             'project' => [
                 'name' => $project->name,
                 'description' => $project->description,
+                'warranty' => $project->project_warranty,
                 'solar_hours_per_day' => (float) $project->solar_hours_per_day,
                 'latitude' => $project->latitude !== null ? (float) $project->latitude : null,
                 'longitude' => $project->longitude !== null ? (float) $project->longitude : null,
@@ -79,9 +80,17 @@ class SolarProjectQuoteBuilder
                 'inverter_count' => $design->inverter_count,
                 'battery_count' => $design->battery_count,
                 'panels_per_string' => $design->panels_per_string,
-                'string_count' => $project->solar_string_count,
+                'string_count' => (int) $design->inverter_count,
                 'array_power_w' => (float) $design->array_power_w,
                 'explanations' => $this->calculator->explainDesign($project, $design),
+                'string_layout' => $layout,
+            ],
+            'diagram' => [
+                'panel_count' => (int) $design->panel_count,
+                'inverter_count' => (int) $design->inverter_count,
+                'battery_count' => (int) $design->battery_count,
+                'string_count' => (int) $design->inverter_count,
+                'panels_per_string' => (int) $design->panels_per_string,
                 'string_layout' => $layout,
             ],
             'materials' => $this->materials->calculate($layout),
@@ -106,7 +115,7 @@ class SolarProjectQuoteBuilder
      *
      * @return array{lines: list<array{key: string, concept: string, item: string, name: string, quantity: int, unit_price: float}>, missing: list<string>}
      */
-    public function autoLines(SolarProject $project, SolarProjectSystemDesign $design): array
+    public function autoLines(SolarProject $project, SolarProjectSystemDesign $design, ?array $layout = null): array
     {
         $design->loadMissing('solarPanel', 'inverter', 'battery');
         $lines = [];
@@ -137,7 +146,7 @@ class SolarProjectQuoteBuilder
             $add(self::PROTECTION_KEYS[$index], $protection['title'], $protection['item'], $protection['quantity']);
         }
 
-        $quantities = $this->materials->calculate($this->materials->layout($project, $design));
+        $quantities = $this->materials->calculate($layout ?? $this->materials->layout($project, $design));
         $catalog = $this->materials->catalogItems();
 
         foreach (self::MATERIAL_LABELS as $key => $label) {
@@ -145,6 +154,76 @@ class SolarProjectQuoteBuilder
         }
 
         return ['lines' => $lines, 'missing' => $missing];
+    }
+
+    /**
+     * @param  list<array{item: string, line_key?: ?string, adjustment: int|string}>  $lines
+     * @return array{design: SolarProjectSystemDesign, layout: array<int, list<int>>, auto_lines: list<array<string, mixed>>, effective_adjustments: array<string, int>, requested_panel_count: int, diagram: array<string, mixed>}
+     */
+    public function quoteScenario(SolarProject $project, SolarProjectSystemDesign $design, array $lines): array
+    {
+        $design->loadMissing('solarPanel.solarPanelSpec', 'inverter.inverterSpec', 'battery.batterySpec');
+        $baseLines = collect($this->autoLines($project, $design)['lines'])->keyBy('key');
+        $panelLine = $baseLines->get('panel');
+        $panelAdjustment = $this->adjustmentFor($lines, 'panel', $panelLine['item'] ?? null);
+        $requestedPanelCount = (int) $design->panel_count + $panelAdjustment;
+
+        if ($requestedPanelCount < 1) {
+            $panelIndex = collect($lines)->search(fn (array $line) => ($line['line_key'] ?? null) === 'panel');
+            throw ValidationException::withMessages([
+                'lines.'.($panelIndex === false ? 0 : $panelIndex).'.adjustment' => 'La cantidad final de paneles debe ser al menos 1.',
+            ]);
+        }
+
+        $inverterSpec = $design->inverter->inverterSpec;
+        $minimumInverterCount = max(1, (int) ceil(
+            (float) $project->maximum_hourly_power_w
+            * (1 + (float) $design->total_oversizing_percent / 100)
+            / (float) $inverterSpec->max_output_power_w,
+        ));
+        $topology = $this->calculator->topologyForPanelCount(
+            $requestedPanelCount,
+            $minimumInverterCount,
+            (float) $design->solarPanel->solarPanelSpec->max_power_w,
+            (float) $inverterSpec->mppt_max_power_w,
+        );
+
+        $scenarioDesign = clone $design;
+        $scenarioDesign->setAttribute('panel_count', $topology['panel_count']);
+        $scenarioDesign->setAttribute('inverter_count', $topology['inverter_count']);
+        $scenarioDesign->setAttribute('panels_per_string', $topology['panels_per_string']);
+        $scenarioDesign->setAttribute('array_power_w', round($topology['panel_count'] * (float) $design->solarPanel->solarPanelSpec->max_power_w, 2));
+
+        $layout = $topology['panel_count'] === (int) $design->panel_count
+            && $topology['inverter_count'] === (int) $design->inverter_count
+            && $topology['panels_per_string'] === (int) $design->panels_per_string
+            ? $this->materials->layout($project, $design)
+            : array_fill(1, $topology['string_count'], [$topology['panels_per_string']]);
+
+        $autoLines = $this->autoLines($project, $scenarioDesign, $layout)['lines'];
+        $effectiveAdjustments = [];
+
+        foreach ($autoLines as $line) {
+            $effectiveAdjustments[$line['key']] = $line['quantity'] - (int) ($baseLines->get($line['key'])['quantity'] ?? 0);
+        }
+
+        $protections = collect($this->protections->recommend($scenarioDesign));
+        $diagram = [
+            'design' => $scenarioDesign,
+            'stringLayout' => $layout,
+            'dcProtection' => $protections->firstWhere('title', 'Breakers DC para strings'),
+            'acInputProtection' => $protections->firstWhere('title', 'Breakers AC de entrada'),
+            'acOutputProtection' => $protections->firstWhere('title', 'Breakers AC de salida'),
+        ];
+
+        return [
+            ...$diagram,
+            'diagram' => $diagram,
+            'layout' => $layout,
+            'auto_lines' => $autoLines,
+            'effective_adjustments' => $effectiveAdjustments,
+            'requested_panel_count' => $requestedPanelCount,
+        ];
     }
 
     /**
@@ -195,14 +274,22 @@ class SolarProjectQuoteBuilder
      */
     public function save(SolarProject $project, SolarProjectSystemDesign $design, array $details, array $lines, array $labor): SolarProjectQuote
     {
-        $auto = collect($this->autoLines($project, $design)['lines'])->keyBy('key');
+        $baseAuto = collect($this->autoLines($project, $design)['lines'])->keyBy('key');
+        $scenario = $this->quoteScenario($project, $design, $lines);
+        $auto = collect($scenario['auto_lines'])->keyBy('key');
         $prepared = [];
 
         foreach ($lines as $index => $line) {
             $item = $this->findItem($line['item']);
-            $autoLine = $auto->get($line['line_key'] ?? '');
-            $base = $autoLine !== null && $autoLine['item'] === $line['item'] ? $autoLine['quantity'] : 0;
-            $quantity = $base + (int) $line['adjustment'];
+            $key = $line['line_key'] ?? '';
+            $baseLine = $baseAuto->get($key);
+            $autoLine = $auto->get($key);
+            $isAutoLine = $baseLine !== null && $autoLine !== null
+                && $baseLine['item'] === $line['item']
+                && $autoLine['item'] === $line['item'];
+            $base = $isAutoLine ? $baseLine['quantity'] : 0;
+            $quantity = $isAutoLine ? $autoLine['quantity'] : $base + (int) $line['adjustment'];
+            $adjustment = $quantity - $base;
 
             if ($item === null || $quantity < 0) {
                 throw ValidationException::withMessages([
@@ -219,7 +306,7 @@ class SolarProjectQuoteBuilder
                 'item' => $item,
                 'concept' => $autoLine !== null && $autoLine['item'] === $line['item'] ? $autoLine['concept'] : null,
                 'base_quantity' => $base,
-                'adjustment' => (int) $line['adjustment'],
+                'adjustment' => $adjustment,
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'tax_percent' => (float) $line['tax_percent'],
@@ -251,7 +338,7 @@ class SolarProjectQuoteBuilder
             'total' => round($laborUnit + $laborTax - $laborDiscount, 2),
         ];
 
-        $snapshot = $this->snapshot($project, $design);
+        $snapshot = $this->snapshot($project, $scenario['design'], $scenario['layout']);
 
         return DB::transaction(function () use ($project, $details, $prepared, $snapshot): SolarProjectQuote {
             $collection = collect($prepared);
@@ -285,5 +372,19 @@ class SolarProjectQuoteBuilder
 
             return $quote;
         });
+    }
+
+    /**
+     * @param  list<array{item: string, line_key?: ?string, adjustment: int|string}>  $lines
+     */
+    private function adjustmentFor(array $lines, string $key, ?string $item): int
+    {
+        foreach ($lines as $line) {
+            if (($line['line_key'] ?? null) === $key && $item !== null && $line['item'] === $item) {
+                return (int) $line['adjustment'];
+            }
+        }
+
+        return 0;
     }
 }

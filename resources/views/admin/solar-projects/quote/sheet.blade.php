@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Ficha de cotización N.° {{ $quote->id }}</title>
+<title>Ficha de cotización N.° {{ $quote->folio }}</title>
 <style>
     @page { margin: 28px 32px; }
     body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #17313c; }
@@ -21,6 +21,24 @@
     .box { border: 1px solid #d5e2da; background: #f8faf7; padding: 6px 8px; margin-top: 4px; }
     .warn { color: #6e5a22; background: #fff9e9; border-left: 3px solid #f3bd35; padding: 4px 6px; margin-top: 3px; }
     .break { page-break-before: always; }
+    .diagram { border: 1px solid #cbdcc7; background: #f6faf4; padding: 10px; }
+    .diagram table { margin: 0; table-layout: fixed; }
+    .diagram td { text-align: center; vertical-align: middle; padding: 7px; }
+    .diagram-heading { color: #477d36; font-size: 8px; font-weight: bold; }
+    .diagram-title { color: #155a91; font-size: 12px; font-weight: bold; }
+    .diagram-label { color: #38545c; font-size: 8px; font-weight: bold; }
+    .diagram-muted { color: #6f8288; font-size: 7px; }
+    .diagram-string { border: 1px solid #d5e2da; background: #fff; }
+    .diagram-node { border: 1px solid #d5e2da; background: #fff; }
+    .diagram-input { border-color: #e5bbbb; background: #fff8f7; }
+    .diagram-center { border-color: #dfbb50; background: #fffaf0; }
+    .diagram-output { border-color: #d9c9ed; background: #fff; }
+    .diagram-arrow-ac { color: #d96161; font-size: 15px; font-weight: bold; }
+    .diagram-arrow-dc { color: #5f963f; font-size: 12px; font-weight: bold; }
+    .diagram-arrow-battery { color: #c49623; font-size: 13px; font-weight: bold; }
+    .diagram-section { page-break-after: avoid; }
+    .diagram { page-break-inside: avoid; }
+    .diagram-equipment td { border: none; padding: 1px; }
 </style>
 </head>
 <body>
@@ -29,6 +47,22 @@
     $project = $snapshot['project'];
     $design = $snapshot['design'];
     $materialLabels = ['rails' => 'Riel estructura solar', 'rail_unions' => 'Uniones de riel', 'ground_connectors' => 'Conectores de tierra', 'mc4_connectors' => 'Conectores MC4', 'end_clamps' => 'End clamp', 'mid_clamps' => 'Mid clamp'];
+    $diagram = $snapshot['diagram'] ?? [
+        'panel_count' => $design['panel_count'],
+        'inverter_count' => $design['inverter_count'],
+        'battery_count' => $design['battery_count'],
+        'string_count' => $design['string_count'],
+        'panels_per_string' => $design['panels_per_string'],
+        'string_layout' => $design['string_layout'],
+    ];
+    $diagramImages = [
+        'panel' => public_path('images/diagrama/panel.png'),
+        'protections' => public_path('images/diagrama/caja-protecciones.png'),
+        'inverter' => public_path('images/diagrama/inversor.png'),
+        'battery' => public_path('images/diagrama/bateria.png'),
+        'grid' => public_path('images/diagrama/energia-publica.png'),
+        'loads' => public_path('images/diagrama/cargas.png'),
+    ];
 @endphp
 
 <table class="head">
@@ -36,7 +70,7 @@
         <td style="width: 40%;">@php($logo = public_path('images/logo-rionet-solar.png'))<img src="{{ file_exists($logo) ? $logo : public_path('rionet-solar.svg') }}" style="height: 54px;" alt="Rionet Solar"></td>
         <td class="r">
             <p class="small muted">FICHA DE COTIZACIÓN</p>
-            <h1>N.° {{ $quote->id }} · {{ $quote->name }}</h1>
+            <h1>N.° {{ $quote->folio }} · {{ $quote->name }}</h1>
             <p class="muted">{{ $quote->created_at->format('d/m/Y H:i') }}</p>
         </td>
     </tr>
@@ -111,6 +145,80 @@
     </tbody>
 </table>
 
+<h3 class="diagram-section">Diagrama del sistema</h3>
+<div class="diagram">
+    <p class="diagram-heading">CAMPO FOTOVOLTAICO</p>
+    <p class="diagram-title">{{ $diagram['panel_count'] }} paneles · {{ $diagram['string_count'] }} strings · {{ $diagram['panels_per_string'] }} en serie por string</p>
+    <table>
+        @foreach(array_chunk($diagram['string_layout'], 2, true) as $stringPair)
+            <tr>
+                @foreach($stringPair as $stringNumber => $rows)
+                    <td class="diagram-string" style="width: 50%;">
+                        <p class="diagram-label">STRING {{ $stringNumber }} · {{ array_sum($rows) }} paneles en serie</p>
+                        @foreach($rows as $rowIndex => $rowCount)
+                            <p class="diagram-muted">Fila {{ $rowIndex + 1 }} · {{ $rowCount }} paneles</p>
+                            @for($panelIndex = 0; $panelIndex < $rowCount; $panelIndex++)
+                                <img src="{{ $diagramImages['panel'] }}" style="width: 25px; height: 25px; vertical-align: middle;" alt="Panel solar">
+                            @endfor
+                        @endforeach
+                    </td>
+                @endforeach
+                @if(count($stringPair) === 1)<td style="width: 50%;"></td>@endif
+            </tr>
+        @endforeach
+    </table>
+    <table style="margin-top: 10px;">
+        <tr>
+            <td class="diagram-node diagram-input" style="width: 29%;">
+                <img src="{{ $diagramImages['grid'] }}" style="width: 62px; height: 68px;" alt="Red eléctrica">
+                <p class="diagram-label">RED ELÉCTRICA · AC INPUT</p>
+                <p class="diagram-arrow-ac">↓</p>
+                <img src="{{ $diagramImages['protections'] }}" style="width: 50px; height: 50px;" alt="Protección AC de entrada">
+                <p class="diagram-label">BREAKER AC INPUT</p>
+            </td>
+            <td class="diagram-arrow-ac" style="width: 5%;">&rarr;</td>
+            <td class="diagram-node diagram-center" style="width: 32%;">
+                <img src="{{ $diagramImages['protections'] }}" style="width: 46px; height: 46px;" alt="Protecciones DC">
+                <p class="diagram-label">PROTECCIONES DC</p>
+                <p class="diagram-muted">{{ $diagram['string_count'] }} por string</p>
+                <p class="diagram-arrow-dc">↓ DC</p>
+                <table class="diagram-equipment">
+                    @foreach(array_chunk(range(1, $diagram['inverter_count']), 2) as $inverterPair)
+                        <tr>
+                            @foreach($inverterPair as $inverterIndex)
+                                <td><img src="{{ $diagramImages['inverter'] }}" style="width: 56px; height: 48px;" alt="Inversor {{ $inverterIndex }}"></td>
+                            @endforeach
+                            @if(count($inverterPair) === 1)<td></td>@endif
+                        </tr>
+                    @endforeach
+                </table>
+                <p class="diagram-title">{{ $diagram['inverter_count'] }} {{ $diagram['inverter_count'] === 1 ? 'inversor' : 'inversores' }}</p>
+                <p class="diagram-muted">{{ $design['inverter']['name'] }}</p>
+                <p class="diagram-arrow-battery">&harr; BANCO DE BATERÍAS</p>
+                <table class="diagram-equipment">
+                    @foreach(array_chunk(range(1, $diagram['battery_count']), 3) as $batteryPair)
+                        <tr>
+                            @foreach($batteryPair as $batteryIndex)
+                                <td><img src="{{ $diagramImages['battery'] }}" style="width: 34px; height: 40px;" alt="Batería {{ $batteryIndex }}"></td>
+                            @endforeach
+                            @for($emptyCell = count($batteryPair); $emptyCell < 3; $emptyCell++)<td></td>@endfor
+                        </tr>
+                    @endforeach
+                </table>
+                <p class="diagram-muted">{{ $diagram['battery_count'] }} {{ $diagram['battery_count'] === 1 ? 'batería' : 'baterías' }}</p>
+            </td>
+            <td class="diagram-arrow-ac" style="width: 5%;">&rarr;</td>
+            <td class="diagram-node diagram-output" style="width: 29%;">
+                <img src="{{ $diagramImages['protections'] }}" style="width: 50px; height: 50px;" alt="Protección AC de salida">
+                <p class="diagram-label">BREAKER AC OUTPUT</p>
+                <p class="diagram-arrow-ac">↓</p>
+                <img src="{{ $diagramImages['loads'] }}" style="width: 66px; height: 68px;" alt="Cargas eléctricas">
+                <p class="diagram-label">CARGAS AC</p>
+            </td>
+        </tr>
+    </table>
+</div>
+
 <h2 class="break">3. Cotización</h2>
 <table>
     <thead><tr><th>#</th><th>Ítem</th><th class="r">Cantidad</th><th class="r">+/-</th><th class="r">Valor unitario</th><th class="r">Impuesto</th><th class="r">Descuento</th><th class="r">Valor total</th></tr></thead>
@@ -136,5 +244,8 @@
     </tfoot>
 </table>
 <p class="small muted" style="margin-top: 10px;">Los datos de cargas y dimensionamiento corresponden al estado del proyecto al momento de guardar esta cotización ({{ \Illuminate\Support\Carbon::parse($snapshot['captured_at'])->format('d/m/Y H:i') }}).</p>
+
+<h2>4. Garantía del proyecto</h2>
+<div class="box" style="white-space: pre-line;">{{ $project['warranty'] ?? '' }}</div>
 </body>
 </html>
