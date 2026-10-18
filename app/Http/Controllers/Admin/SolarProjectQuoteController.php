@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveSolarProjectQuoteRequest;
 use App\Models\SolarProject;
 use App\Services\SolarProjectQuoteBuilder;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
@@ -55,6 +57,17 @@ class SolarProjectQuoteController extends Controller
 
         return redirect()->route('admin.solar-projects.quotes.show', [$solarProject, $quote->id])
             ->with('success', 'Cotización guardada.');
+    }
+
+    public function sheet(SolarProject $solarProject, int $quote): Response
+    {
+        $quote = $solarProject->quotes()->with('items')->findOrFail($quote);
+
+        abort_if($quote->snapshot === null, 404, 'Esta cotización no tiene datos congelados para generar la ficha.');
+
+        return Pdf::loadView('admin.solar-projects.quote.sheet', ['quote' => $quote, 'snapshot' => $quote->snapshot])
+            ->setPaper('a4')
+            ->stream('ficha-cotizacion-'.$quote->id.'.pdf');
     }
 
     public function showSaved(SolarProject $solarProject, int $quote): View

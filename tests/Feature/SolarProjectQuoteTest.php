@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Appliance;
 use App\Models\ElectricalEquipment;
 use App\Models\InstallationMaterial;
 use App\Models\SolarProject;
@@ -113,4 +114,43 @@ test('a quote with only labor is valid and labor quantity cannot be changed from
     $item = SolarProjectQuote::query()->firstOrFail()->items()->firstOrFail();
     expect($item->quantity)->toBe(1);
     expect((float) $item->line_total)->toBe(50000.0);
+});
+
+test('a saved quote freezes loads and design, so the sheet does not change when the project does', function () {
+    [$project, $payload] = makeProtectionScenario();
+    $nevera = Appliance::factory()->create(['name' => 'Nevera de prueba', 'energy_consumption_wh' => 100]);
+    $horno = Appliance::factory()->create(['name' => 'Horno de prueba', 'energy_consumption_wh' => 900]);
+    $load = fn ($appliance) => ['appliance_id' => $appliance->id, 'quantity_total' => 2, 'quantity_night' => 1, 'usage_hours_total' => 5, 'usage_hours_night' => 2];
+
+    $this->post(route('admin.solar-projects.loads.store', $project), $load($nevera))->assertRedirect();
+    $this->put(route('admin.solar-projects.system-design.update', $project), $payload)->assertRedirect();
+    $this->post(route('admin.solar-projects.quote.store', $project), [
+        'name' => 'Cotización congelada',
+        'labor' => ['unit_price' => 1000, 'tax_percent' => 0, 'discount_percent' => 0],
+    ])->assertRedirect();
+
+    $this->post(route('admin.solar-projects.loads.store', $project), $load($horno))->assertRedirect();
+    $quote = SolarProjectQuote::query()->with('items')->firstOrFail();
+
+    expect($project->fresh()->total_consumption_wh_per_day)->not->toBe('1000.00');
+    expect($quote->snapshot['loads'])->toHaveCount(1);
+    expect($quote->snapshot['loads'][0]['name'])->toBe('Nevera de prueba');
+    expect($quote->snapshot['consumption']['total_wh'])->toEqual(1000);
+    expect($quote->snapshot['design']['panel']['name'])->toBe('Panel de prueba');
+    expect($quote->snapshot['design']['panel_count'])->toBe(2);
+
+    $html = view('admin.solar-projects.quote.sheet', ['quote' => $quote, 'snapshot' => $quote->snapshot])->render();
+    expect($html)->toContain('Nevera de prueba')->toContain('Cotización congelada')->not->toContain('Horno de prueba');
+
+    $response = $this->get(route('admin.solar-projects.quotes.sheet', [$project, $quote->id]));
+    $response->assertOk();
+    expect($response->headers->get('content-type'))->toContain('application/pdf');
+    expect(substr($response->getContent(), 0, 4))->toBe('%PDF');
+});
+
+test('a quote without a frozen copy has no sheet', function () {
+    $project = SolarProject::factory()->create();
+    $quote = $project->quotes()->create(['name' => 'Antigua', 'subtotal' => 0, 'tax_total' => 0, 'discount_total' => 0, 'total' => 0]);
+
+    $this->get(route('admin.solar-projects.quotes.sheet', [$project, $quote->id]))->assertNotFound();
 });

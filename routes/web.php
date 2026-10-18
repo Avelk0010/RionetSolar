@@ -52,4 +52,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::get('solar-projects/{solarProject}/quotes/{quote}', [SolarProjectQuoteController::class, 'showSaved'])
         ->whereNumber('quote')
         ->name('solar-projects.quotes.show');
+    Route::get('solar-projects/{solarProject}/quotes/{quote}/sheet', [SolarProjectQuoteController::class, 'sheet'])
+        ->whereNumber('quote')
+        ->name('solar-projects.quotes.sheet');
 });

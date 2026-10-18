@@ -7,7 +7,7 @@
 
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div><p class="text-xs font-bold uppercase tracking-[0.14em] text-[#5f963f]">Cotización guardada</p><h2 class="mt-1 text-lg font-semibold text-[#173b49]">N.° {{ $quote->id }}@if($quote->name) · {{ $quote->name }}@endif</h2><p class="mt-1 text-xs text-[#718187]">{{ $quote->created_at->format('d/m/Y H:i') }}</p>@if($quote->description)<p class="mt-2 max-w-2xl whitespace-pre-line text-sm text-[#526a70]">{{ $quote->description }}</p>@endif</div>
-        <a href="{{ route('admin.solar-projects.quote.show', $project) }}" class="button-secondary rounded-md bg-white px-4 py-2 text-sm font-semibold">← Volver a cotización</a>
+        <div class="flex flex-wrap gap-2">@if($quote->snapshot !== null)<a href="{{ route('admin.solar-projects.quotes.sheet', [$project, $quote->id]) }}" target="_blank" rel="noopener" class="button-primary rounded-md px-4 py-2 text-sm font-semibold">Ficha (PDF)</a>@endif<a href="{{ route('admin.solar-projects.quote.show', $project) }}" class="button-secondary rounded-md bg-white px-4 py-2 text-sm font-semibold">← Volver a cotización</a></div>
     </div>
     <div class="overflow-x-auto border border-[#dce6e1] bg-white">
         <table class="w-full min-w-[900px] text-left text-sm">

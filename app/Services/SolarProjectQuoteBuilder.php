@@ -26,7 +26,80 @@ class SolarProjectQuoteBuilder
     public function __construct(
         private SolarProjectMaterialCalculator $materials,
         private SolarProjectProtectionRecommender $protections,
+        private SolarProjectCalculator $calculator,
     ) {}
+
+    /**
+     * Copia congelada de cargas y dimensionamiento; la ficha PDF se arma solo con ella.
+     *
+     * @return array<string, mixed>
+     */
+    public function snapshot(SolarProject $project, SolarProjectSystemDesign $design): array
+    {
+        $project->refresh();
+        $design->refresh()->load('solarPanel.solarPanelSpec', 'inverter.inverterSpec', 'battery.batterySpec');
+        $layout = $this->materials->layout($project, $design);
+        $panelSpec = $design->solarPanel->solarPanelSpec;
+        $inverterSpec = $design->inverter->inverterSpec;
+        $batterySpec = $design->battery->batterySpec;
+
+        return [
+            'captured_at' => now()->toIso8601String(),
+            'project' => [
+                'name' => $project->name,
+                'description' => $project->description,
+                'solar_hours_per_day' => (float) $project->solar_hours_per_day,
+                'latitude' => $project->latitude !== null ? (float) $project->latitude : null,
+                'longitude' => $project->longitude !== null ? (float) $project->longitude : null,
+            ],
+            'consumption' => [
+                'total_wh' => (float) $project->total_consumption_wh_per_day,
+                'night_wh' => (float) $project->night_consumption_wh_per_day,
+                'peak_w' => (float) $project->maximum_hourly_power_w,
+            ],
+            'loads' => $project->applianceItems()->with('appliance')->orderBy('id')->get()->map(fn ($item) => [
+                'name' => $item->appliance->name,
+                'hourly_wh' => (float) $item->appliance_energy_consumption_wh,
+                'quantity_total' => $item->quantity_total,
+                'quantity_night' => $item->quantity_night,
+                'hours_total' => (float) $item->usage_hours_total,
+                'hours_night' => (float) $item->usage_hours_night,
+                'daily_wh' => (float) $item->daily_energy_wh,
+                'night_wh' => (float) $item->night_energy_wh,
+                'peak_w' => (float) $item->peak_power_w,
+            ])->all(),
+            'design' => [
+                'panel' => ['name' => $design->solarPanel->name, 'power_w' => (float) $panelSpec->max_power_w],
+                'inverter' => ['name' => $design->inverter->name, 'output_w' => (float) $inverterSpec->max_output_power_w, 'mppt_w' => (float) $inverterSpec->mppt_max_power_w],
+                'battery' => ['name' => $design->battery->name, 'capacity_ah' => (float) $batterySpec->capacity_ah, 'voltage_v' => (float) $batterySpec->voltage_v],
+                'total_oversizing_percent' => (float) $design->total_oversizing_percent,
+                'night_oversizing_percent' => (float) $design->night_oversizing_percent,
+                'max_battery_discharge_percent' => (float) $design->max_battery_discharge_percent,
+                'panel_count' => $design->panel_count,
+                'inverter_count' => $design->inverter_count,
+                'battery_count' => $design->battery_count,
+                'panels_per_string' => $design->panels_per_string,
+                'string_count' => $project->solar_string_count,
+                'array_power_w' => (float) $design->array_power_w,
+                'explanations' => $this->calculator->explainDesign($project, $design),
+                'string_layout' => $layout,
+            ],
+            'materials' => $this->materials->calculate($layout),
+            'protections' => array_map(function (array $protection): array {
+                $spec = $protection['item']?->dcBreakerSpec ?? $protection['item']?->acBreakerSpec;
+
+                return [
+                    'title' => $protection['title'],
+                    'quantity' => $protection['quantity'],
+                    'recommendation' => $protection['recommendation'],
+                    'item' => $protection['item']?->name,
+                    'poles' => $spec?->poles,
+                    'voltage_v' => $spec !== null ? (float) ($spec->max_operating_voltage_v ?? $spec->operating_voltage_v) : null,
+                    'current_a' => $spec !== null ? (float) $spec->rated_current_a : null,
+                ];
+            }, $this->protections->recommend($design)),
+        ];
+    }
 
     /**
      * Líneas que salen del dimensionamiento, con el ítem del catálogo ya seleccionado.
@@ -178,11 +251,14 @@ class SolarProjectQuoteBuilder
             'total' => round($laborUnit + $laborTax - $laborDiscount, 2),
         ];
 
-        return DB::transaction(function () use ($project, $details, $prepared): SolarProjectQuote {
+        $snapshot = $this->snapshot($project, $design);
+
+        return DB::transaction(function () use ($project, $details, $prepared, $snapshot): SolarProjectQuote {
             $collection = collect($prepared);
             $quote = $project->quotes()->create([
                 'name' => $details['name'],
                 'description' => $details['description'] ?? null,
+                'snapshot' => $snapshot,
                 'subtotal' => $collection->sum('gross'),
                 'tax_total' => $collection->sum('tax'),
                 'discount_total' => $collection->sum('discount'),
